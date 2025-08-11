@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../config.dart';
+import '../models/field_data.dart';
 
 class QueryPage extends StatefulWidget {
   const QueryPage({Key? key}) : super(key: key);
@@ -11,11 +12,10 @@ class QueryPage extends StatefulWidget {
 }
 
 class _QueryPageState extends State<QueryPage> {
-  String? selectedField;
+  Field? selectedField;
   String? selectedRobot;
   String selectedType = 'arrival';
 
-  List<String> fieldNames = [];
   List<String> robotSerials = [];
 
   String outputText = "";
@@ -26,18 +26,19 @@ class _QueryPageState extends State<QueryPage> {
     loadFields();
   }
 
-  Future<void> loadFields() async {
-    setState(() {
-      fieldNames = Config.fieldMap.keys.toList();
-    });
-    if (fieldNames.isNotEmpty) {
-      selectedField = fieldNames.first;
-      await loadRobots(selectedField!);
+  void loadFields() {
+    if (Config.fields.isNotEmpty) {
+      setState(() {
+        selectedField = Config.fields.first;
+        loadRobots();
+      });
     }
   }
 
-  Future<void> loadRobots(String fieldName) async {
-    final fieldId = Config.fieldMap[fieldName] ?? "";
+  Future<void> loadRobots() async {
+    if (selectedField == null) return;
+
+    final fieldId = selectedField!.fieldId;
     final url = Uri.parse("${Config.baseUrl}/rms/mission/robots?fieldId=$fieldId");
     final headers = {
       'Authorization': Config.prodToken,
@@ -61,7 +62,7 @@ class _QueryPageState extends State<QueryPage> {
   Future<void> query() async {
     if (selectedField == null || selectedRobot == null) return;
 
-    final fieldId = Config.fieldMap[selectedField!] ?? "";
+    final fieldId = selectedField!.fieldId;
     final url = Uri.parse("${Config.baseUrl}/rms/mission/notification");
     final headers = {
       'Authorization': Config.prodToken,
@@ -79,7 +80,7 @@ class _QueryPageState extends State<QueryPage> {
       final now = DateTime.now().toString();
       setState(() {
         outputText += "\n" + "=" * 60 + "\n";
-        outputText += "[$now] 查詢：場域=$selectedField, 序號=$selectedRobot, 類型=$selectedType\n";
+        outputText += "[$now] 查詢：場域=${selectedField!.fieldName}, 序號=$selectedRobot, 類型=$selectedType\n";
         outputText += resp.body + "\n";
       });
     } catch (e) {
@@ -107,20 +108,20 @@ class _QueryPageState extends State<QueryPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                DropdownButtonFormField<String>(
+                DropdownButtonFormField<Field>(
                   decoration: const InputDecoration(labelText: "選擇場域"),
                   value: selectedField,
-                  items: fieldNames
-                      .map((f) => DropdownMenuItem(value: f, child: Text(f)))
+                  items: Config.fields
+                      .map((f) => DropdownMenuItem(value: f, child: Text(f.fieldName)))
                       .toList(),
-                  onChanged: (v) async {
+                  onChanged: (v) {
                     if (v != null) {
                       setState(() {
                         selectedField = v;
                         selectedRobot = null;
                         robotSerials = [];
                       });
-                      await loadRobots(v);
+                      loadRobots();
                     }
                   },
                 ),
