@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:pms_external_service_flutter/models/field_data.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Config {
   static String baseUrl = "https://api.nuwarobotics.com/v1";
   static String theme = "darkly";
   static String prodToken = "";
-  static Map<String, String> fieldMap = {};
+  static List<Field> fields = [];
   static List<Map<String, dynamic>> triggerRecords = [];
 
   /// 讀取 token
@@ -71,7 +72,7 @@ class Config {
       print("No prodToken available, skip fetchFields");
       return;
     }
-    fieldMap.clear();
+    fields.clear();
     final url = Uri.parse("$baseUrl/rms/mission/fields");
     final headers = {
       'Authorization': prodToken,
@@ -82,13 +83,17 @@ class Config {
       final resp = await http.get(url, headers: headers);
       if (resp.statusCode == 200) {
         final jsonResp = jsonDecode(resp.body);
-        final List<dynamic> fields = jsonResp['data']['payload'] ?? [];
-        for (var field in fields) {
-          if (field['fieldName'] != null && field['fieldId'] != null) {
-            fieldMap[field['fieldName']] = field['fieldId'];
+        final List<dynamic> fieldList = jsonResp['data']['payload'] ?? [];
+        for (var fieldData in fieldList) {
+          if (fieldData['fieldName'] != null && fieldData['fieldId'] != null) {
+            fields.add(Field(
+              fieldId: fieldData['fieldId'],
+              fieldName: fieldData['fieldName'],
+              maps: [], // Initially empty, will be populated by the new logic
+            ));
           }
         }
-        print("Fetched fields: ${fieldMap.keys.toList()}");
+        print("Fetched initial fields: ${fields.map((f) => f.fieldName).toList()}");
       } else {
         print("fetchFields failed: ${resp.statusCode}");
       }
