@@ -11,7 +11,7 @@ class TriggerPage extends StatefulWidget {
   _TriggerPageState createState() => _TriggerPageState();
 }
 
-class _TriggerPageState extends State<TriggerPage> {
+class _TriggerPageState extends State<TriggerPage> with AutomaticKeepAliveClientMixin<TriggerPage> {
   Field? selectedField;
   String? selectedRobot;
   String missionType = "到取貨點取貨再送到目標點";
@@ -29,6 +29,9 @@ class _TriggerPageState extends State<TriggerPage> {
   bool _isRefreshingFields = false;
   final ScrollController _horizontalController = ScrollController();
   final ScrollController _verticalController = ScrollController();
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -303,6 +306,7 @@ class _TriggerPageState extends State<TriggerPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // See AutomaticKeepAliveClientMixin.
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Row(

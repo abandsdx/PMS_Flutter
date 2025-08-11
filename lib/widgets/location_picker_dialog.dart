@@ -30,9 +30,9 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> with Single
     return AlertDialog(
       title: Text("選擇地點"),
       contentPadding: const EdgeInsets.fromLTRB(0, 20, 0, 0),
-      content: Container(
+      content: SizedBox(
         width: double.maxFinite,
-        height: 400, // Give it a fixed height
+        height: MediaQuery.of(context).size.height * 0.6, // adaptive height
         child: Column(
           children: [
             if (widget.maps.isNotEmpty)
