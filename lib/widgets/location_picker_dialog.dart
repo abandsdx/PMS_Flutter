@@ -32,7 +32,7 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> with Single
       contentPadding: const EdgeInsets.fromLTRB(0, 20, 0, 0),
       content: SizedBox(
         width: double.maxFinite,
-        height: MediaQuery.of(context).size.height * 0.6, // adaptive height
+        height: MediaQuery.of(context).size.height * 0.4, // adaptive height, reduced size
         child: Column(
           children: [
             if (widget.maps.isNotEmpty)
