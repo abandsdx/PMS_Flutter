@@ -26,6 +26,16 @@ class Field {
         "fieldName": fieldName,
         "maps": List<dynamic>.from(maps.map((x) => x.toJson())),
     };
+
+    @override
+    bool operator ==(Object other) =>
+        identical(this, other) ||
+        other is Field &&
+            runtimeType == other.runtimeType &&
+            fieldId == other.fieldId;
+
+    @override
+    int get hashCode => fieldId.hashCode;
 }
 
 class MapInfo {

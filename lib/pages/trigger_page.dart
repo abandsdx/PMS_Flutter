@@ -249,6 +249,7 @@ class _TriggerPageState extends State<TriggerPage> {
         final mapResponse = await http.get(mapUrl, headers: headers);
 
         if (mapResponse.statusCode == 200) {
+          if (!mounted) return;
           final newFields = fieldFromJson(utf8.decode(mapResponse.bodyBytes));
           setState(() {
             Config.fields = newFields;
@@ -277,11 +278,15 @@ class _TriggerPageState extends State<TriggerPage> {
         throw Exception("觸發刷新失敗，狀態碼：${refreshResponse.statusCode}");
       }
     } catch (e) {
-      _showMessage("錯誤", "更新場域資訊時發生錯誤：\n$e");
+      if (mounted) {
+        _showMessage("錯誤", "更新場域資訊時發生錯誤：\n$e");
+      }
     } finally {
-      setState(() {
-        _isRefreshingFields = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isRefreshingFields = false;
+        });
+      }
     }
   }
 
