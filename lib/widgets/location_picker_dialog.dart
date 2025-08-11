@@ -27,11 +27,23 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> with Single
 
   @override
   Widget build(BuildContext context) {
+    // --- Adaptive Width Calculation ---
+    const double tabEstimatedWidth = 100.0;
+    const double minDialogWidth = 320.0;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double maxDialogWidth = screenWidth * 0.9;
+
+    // Add some buffer for padding and the cancel button
+    final double calculatedWidth = (widget.maps.length * tabEstimatedWidth) + 60.0;
+
+    final dialogWidth = calculatedWidth.clamp(minDialogWidth, maxDialogWidth);
+    // --- End Calculation ---
+
     return AlertDialog(
       title: Text("選擇地點"),
       contentPadding: const EdgeInsets.fromLTRB(0, 20, 0, 0),
       content: SizedBox(
-        width: double.maxFinite,
+        width: dialogWidth,
         height: MediaQuery.of(context).size.height * 0.4, // adaptive height, reduced size
         child: Column(
           children: [
