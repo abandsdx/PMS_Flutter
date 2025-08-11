@@ -1,0 +1,76 @@
+# Flutter/Dart related
+build/
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+/.flutter-plugins
+.flutter-plugins-dependencies
+
+# Flutter generated plugin files
+.flutter-plugins
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+
+# Android
+.gradle/
+local.properties
+*.keystore
+
+# iOS
+Pods/
+Podfile.lock
+*.xcworkspace/
+*.xcuserdata/
+DerivedData/
+.idea/
+
+# Linux
+cmake-build-debug/
+cmake-build-release/
+cmake-build-relwithdebinfo/
+cmake-build-minsize/
+
+# Windows (Visual Studio)
+windows/flutter/ephemeral/
+windows/runner/Debug/
+windows/runner/Release/
+windows/runner/x64/Debug/
+windows/runner/x64/Release/
+windows
+linux
+macos
+ios
+web
+android
+widget_test.dart
+
+# Web
+web/build/
+
+# Logs
+*.log
+
+# Lock files
+*.lock
+
+# Secrets (if any)
+# *.env
+# secrets.json
+package_config.json
+package_config_subset
+package_graph.json
+.flutter-plugins-dependencies
+analysis_options.yaml
