@@ -30,33 +30,16 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
-  Future<void> fetchFields() async {
-    Config.fieldMap.clear();
-    final url = Uri.parse("${Config.baseUrl}/rms/mission/fields");
-    final headers = {
-      'Authorization': Config.prodToken,
-      'Content-Type': 'application/json'
-    };
-    try {
-      final resp = await http.get(url, headers: headers);
-      if (resp.statusCode == 200) {
-        final fields = json.decode(resp.body)['data']['payload'] as List<dynamic>;
-        for (var field in fields) {
-          Config.fieldMap[field['fieldName']] = field['fieldId'];
-        }
-      }
-    } catch (e) {
-      print("Failed to fetch fields: $e");
-    }
-  }
-
   void applySettings() async {
     if (!_formKey.currentState!.validate()) return;
 
     Config.prodToken = _tokenController.text.trim();
     Config.theme = (_themeMode == 'dark') ? 'darkly' : 'flatly'; // 範例映射
-    await fetchFields();
-    Config.save();
+    await Config.fetchFields();
+    await Config.saveToken(Config.prodToken); // Also save the token
+    await Config.saveTheme(Config.theme); // And the theme
+
+    // Config.save() is empty, so I removed it and used specific save methods.
 
     if (widget.onApply != null) {
       widget.onApply!();

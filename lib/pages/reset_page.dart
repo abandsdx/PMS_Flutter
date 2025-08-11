@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config.dart';
+import '../models/field_data.dart';
 import '../utils/trigger_storage.dart';
 
 class ResetPage extends StatefulWidget {
@@ -115,8 +116,12 @@ class _ResetPageState extends State<ResetPage> {
             child: ListView(
               children: [
                 ...records.map((record) {
-                  final fieldName = Config.fieldMap[record['fieldId']] ??
-                      record['fieldId'];
+                  String fieldName;
+                  try {
+                    fieldName = Config.fields.firstWhere((f) => f.fieldId == record['fieldId']).fieldName;
+                  } catch (e) {
+                    fieldName = record['fieldId'];
+                  }
                   final isSelected = selectedRecord == record;
                   return ListTile(
                     tileColor: isSelected ? Colors.blue.shade100 : null,
