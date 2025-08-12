@@ -1,6 +1,35 @@
-# PMS_External_Service_Flutter
+# PMS External Service Flutter
 
-PMS Flutter版本同時讓iOS與Android平台使用，也支援Web以及桌面應用程式。由女媧場域配置，設定好要串接的額外的外部服務，MCS在指定的時機點呼叫下述NUWA Cloud Adapter標準API，達到串接外部服務的能力。
+PMS Flutter 版本，用於串接 Nuwa Cloud PMS 與外部服務，同時支援 iOS、Android、Web 及桌面應用程式。
+
+## ✨ 功能特色 (Features)
+
+- **觸發機器人任務**: 透過表單介面，向指定的機器人觸發新任務。
+- **查詢任務狀態**: 查詢已觸發任務的目前狀態。
+- **重設機器人密碼**: 提供重設機器人密碼的功能。
+- **動態場域選擇**:
+    - App 啟動時自動從外部服務獲取場域與地圖資訊。
+    - 提供互動式彈窗，讓使用者能方便地從不同樓層選擇配送及取貨地點。
+- **動態界面主題**:
+    - 內建四種界面主題 (亮色、暗色系)。
+    - 使用者可在設定頁面自由切換，主題偏好會被儲存並在下次啟動時自動套用。
+
+## 🏗️ 軟體架構 (Software Architecture)
+
+本專案採用基於 `provider` 的狀態管理架構，將 UI、業務邏輯和資料模型分離。
+
+-   **`lib/`**: 應用程式原始碼主目錄。
+    -   **`main.dart`**: 應用程式進入點。負責初始化設定、`ThemeProvider`，並啟動 App。
+    -   **`config.dart`**: 全域設定檔。負責管理 API 金鑰、主題偏好等，並透過 `shared_preferences` 進行本地儲存。
+    -   **`pages/`**: 存放主要的頁面元件，例如 `TriggerPage`, `QueryPage`, `SettingsPage`。
+        -   `TriggerPage` 使用 `AutomaticKeepAliveClientMixin` 來保持頁面狀態，避免在 Tab 切換時重複載入資料。
+    -   **`widgets/`**: 存放共用的 UI 元件，例如 `LocationPickerDialog`。
+    -   **`providers/`**: 存放狀態管理的 Provider。
+        -   `ThemeProvider.dart`: 使用 `ChangeNotifier` 管理當前主題，並在主題變更時通知 UI 更新。
+    -   **`models/`**: 存放資料模型。
+        -   `field_data.dart`: 定義了從外部服務獲取的場域、地圖、地點等資料的類別。
+    -   **`theme/`**: 存放主題相關的定義。
+        -   `themes.dart`: 定義了 App 中所有可用的 `ThemeData` 物件。
 
 ---
 
