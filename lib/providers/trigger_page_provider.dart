@@ -10,10 +10,13 @@ import '../utils/trigger_storage.dart';
 /// state and business logic. It uses [ChangeNotifier] to notify listening widgets
 /// of state changes, prompting them to rebuild.
 class TriggerPageProvider with ChangeNotifier {
+  /// The value representing a non-selection for the robot.
+  static const String notSpecified = '不指定';
+
   // --- STATE VARIABLES ---
 
   Field? _selectedField;
-  String? _selectedRobot;
+  String? _selectedRobot = notSpecified;
   String _missionType = "到取貨點取貨再送到目標點";
   String _deviceType = "單艙機器人";
 
@@ -36,7 +39,7 @@ class TriggerPageProvider with ChangeNotifier {
   String? get selectedRobot => _selectedRobot;
   String get missionType => _missionType;
   String get deviceType => _deviceType;
-  List<String> get robotList => _robotList;
+  List<String> get robotList => [notSpecified, ..._robotList];
   List<Map<String, String>> get robotInfo => _robotInfo;
   bool get isLoadingRobots => _isLoadingRobots;
 
@@ -56,7 +59,7 @@ class TriggerPageProvider with ChangeNotifier {
   void selectField(Field? newField) {
     if (newField == null || newField.fieldId == _selectedField?.fieldId) return;
     _selectedField = newField;
-    _selectedRobot = null;
+    _selectedRobot = notSpecified; // Default to not specified
     _robotList = [];
     _robotInfo = [];
     notifyListeners();
@@ -92,12 +95,13 @@ class TriggerPageProvider with ChangeNotifier {
       final robots = await ApiService.fetchRobots(_selectedField!.fieldId);
       _robotList = robots.map((r) => r['sn']!).where((sn) => sn.isNotEmpty).toList();
       _robotInfo = robots;
-      _selectedRobot = _robotList.isNotEmpty ? _robotList.first : null;
+      // Always default to "Not Specified" after fetching, letting the user choose.
+      _selectedRobot = notSpecified;
     } catch (e) {
       print("Failed to fetch robots: $e");
       _robotList = [];
       _robotInfo = [];
-      _selectedRobot = null;
+      _selectedRobot = notSpecified;
     } finally {
       _isLoadingRobots = false;
       notifyListeners();
@@ -107,9 +111,14 @@ class TriggerPageProvider with ChangeNotifier {
   /// Builds the payload and triggers a new mission via the ApiService.
   /// Returns a map with 'success' (bool) and 'message' (String).
   Future<Map<String, dynamic>> triggerMission() async {
-    if (_selectedField == null || _selectedRobot == null) {
-      return {'success': false, 'message': '請先選擇一個場域和機器人。'};
+    if (_selectedField == null) {
+      return {'success': false, 'message': '請先選擇一個場域。'};
     }
+
+    // Handle the "Not Specified" case for the robot serial number.
+    final serialNumber = (_selectedRobot == notSpecified || _selectedRobot == null)
+        ? ""
+        : _selectedRobot!;
 
     final missionMap = {"到取貨點取貨再送到目標點": "2", "貨物放入艙門，機器人介面輸入指定目標點送貨": "3"};
     final deviceMap = {"未指定": "0", "單艙機器人": "1", "雙艙機器人": "2", "開放式機器人": "3"};
@@ -133,7 +142,7 @@ class TriggerPageProvider with ChangeNotifier {
     final payload = {
       "triggerId": "PMS-${DateTime.now().toIso8601String().replaceAll(RegExp(r'[-:.]'), '').substring(0, 14)}",
       "fieldId": _selectedField!.fieldId,
-      "serialNumber": _selectedRobot!,
+      "serialNumber": serialNumber,
       "missionType": missionMap[_missionType],
       "deviceType": deviceMap[_deviceType],
       "destination": [destination]
@@ -145,7 +154,7 @@ class TriggerPageProvider with ChangeNotifier {
         final newRecord = TriggerRecord(
           triggerId: payload["triggerId"].toString(),
           fieldId: _selectedField!.fieldId,
-          serialNumber: _selectedRobot!,
+          serialNumber: serialNumber,
           timestamp: DateTime.now().toIso8601String(),
           rawPayload: payload,
         );
