@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:provider/provider.dart';
 import '../config.dart';
+import '../providers/theme_provider.dart';
+import '../theme/themes.dart';
 
 class SettingsPage extends StatefulWidget {
-  final VoidCallback? onApply;
+  final VoidCallback? onApply; // This is probably not needed anymore
 
   const SettingsPage({Key? key, this.onApply}) : super(key: key);
 
@@ -15,13 +16,14 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _tokenController;
-  String _themeMode = 'light'; // 你可以用 'light' / 'dark' 來模擬切換主題
+  late String _selectedThemeName;
 
   @override
   void initState() {
     super.initState();
     _tokenController = TextEditingController(text: Config.prodToken);
-    _themeMode = Config.theme == "darkly" ? 'dark' : 'light'; // 簡單映射
+    // Initialize with the current theme from the provider
+    _selectedThemeName = Provider.of<ThemeProvider>(context, listen: false).themeName;
   }
 
   @override
@@ -33,24 +35,27 @@ class _SettingsPageState extends State<SettingsPage> {
   void applySettings() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Save the token
+    await Config.saveToken(_tokenController.text.trim());
     Config.prodToken = _tokenController.text.trim();
-    Config.theme = (_themeMode == 'dark') ? 'darkly' : 'flatly'; // 範例映射
-    await Config.fetchFields();
-    await Config.saveToken(Config.prodToken); // Also save the token
-    await Config.saveTheme(Config.theme); // And the theme
 
-    // Config.save() is empty, so I removed it and used specific save methods.
+    // Set the theme using the provider
+    // This will also save the theme and notify listeners to rebuild the UI
+    Provider.of<ThemeProvider>(context, listen: false).setTheme(_selectedThemeName);
 
-    if (widget.onApply != null) {
-      widget.onApply!();
-    }
+    // The onApply callback is likely no longer needed since Provider handles the rebuild.
+    // if (widget.onApply != null) {
+    //   widget.onApply!();
+    // }
+
+    // We don't need to call fetchFields here anymore, as that is part of a different workflow.
 
     if (context.mounted) {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('設定'),
-          content: const Text('設定已套用，場域與機器人資料已更新！'),
+          content: const Text('設定已儲存！'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -71,15 +76,16 @@ class _SettingsPageState extends State<SettingsPage> {
         child: ListView(
           children: [
             DropdownButtonFormField<String>(
-              value: _themeMode,
-              items: const [
-                DropdownMenuItem(value: 'light', child: Text('亮色主題')),
-                DropdownMenuItem(value: 'dark', child: Text('暗色主題')),
-              ],
+              value: _selectedThemeName,
+              items: AppThemes.themes.keys.map((name) {
+                return DropdownMenuItem(value: name, child: Text(name));
+              }).toList(),
               onChanged: (v) {
-                setState(() {
-                  _themeMode = v!;
-                });
+                if (v != null) {
+                  setState(() {
+                    _selectedThemeName = v;
+                  });
+                }
               },
               decoration: const InputDecoration(labelText: '介面主題'),
             ),

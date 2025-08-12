@@ -1,24 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'config.dart';
 import 'pages/trigger_page.dart';
 import 'pages/query_page.dart';
 import 'pages/reset_page.dart';
 import 'pages/settings_page.dart';
 import 'widgets/api_key_dialog.dart';
+import 'providers/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Config.loadToken(); // Load token from storage
-  runApp(MyApp());
+  await Config.loadTheme(); // Load theme from storage
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeProvider(Config.theme),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'PMS External Service',
-      theme: ThemeData(primarySwatch: Colors.teal),
-      home: PMSHome(),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return MaterialApp(
+          title: 'PMS External Service',
+          theme: themeProvider.themeData,
+          home: PMSHome(),
+        );
+      },
     );
   }
 }
