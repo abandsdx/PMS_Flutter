@@ -4,6 +4,7 @@ import '../config.dart';
 import '../models/field_data.dart';
 import '../providers/trigger_page_provider.dart';
 import '../widgets/location_picker_dialog.dart';
+import '../widgets/map_tracking_dialog.dart';
 
 /// A page for triggering new missions, acting as the main View.
 ///
