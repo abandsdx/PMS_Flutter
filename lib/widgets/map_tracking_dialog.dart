@@ -55,6 +55,7 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
   @override
   Widget build(BuildContext context) {
     final fullMapUrl = '$_mapBaseUrl/${widget.mapImagePartialPath}';
+    print("🗺️ Loading map from URL: $fullMapUrl"); // Log the URL
 
     return AlertDialog(
       // Use a larger dialog size
@@ -83,6 +84,9 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
                           return progress == null ? child : const Center(child: CircularProgressIndicator());
                         },
                         errorBuilder: (context, error, stackTrace) {
+                          print("🚨 Failed to load map image.");
+                          print("Error: $error");
+                          print("StackTrace: $stackTrace");
                           return const Center(child: Text("無法載入地圖"));
                         },
                       ),
