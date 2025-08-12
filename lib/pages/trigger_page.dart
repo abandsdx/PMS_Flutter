@@ -37,9 +37,8 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
   @override
   bool get wantKeepAlive => true;
 
-  /// Shows a location picker dialog and updates the given controller.
-  Future<void> _showLocationPicker(BuildContext context, TextEditingController controller) async {
-    // We need to read the provider without listening to avoid rebuilding this whole widget.
+  /// Shows a location picker dialog and updates the provider with the result.
+  Future<void> _showLocationPicker(BuildContext context, {required bool isDestination}) async {
     final provider = Provider.of<TriggerPageProvider>(context, listen: false);
     if (provider.selectedField == null) {
       _showMessage(context, "提醒", "請先選擇一個場域。");
@@ -50,13 +49,18 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
       return;
     }
 
-    final selectedLocation = await showDialog<String>(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (ctx) => LocationPickerDialog(maps: provider.selectedField!.maps),
     );
 
-    if (selectedLocation != null) {
-      controller.text = selectedLocation;
+    if (result != null) {
+      if (isDestination) {
+        provider.setDestination(result);
+      } else {
+        // For now, just update the controller for pickup location
+        provider.pickupController.text = result['location'] as String;
+      }
     }
   }
 
@@ -75,12 +79,38 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
 
   /// Handles the trigger mission button press, awaiting the result and showing a dialog.
   Future<void> _onTriggerMission(BuildContext context) async {
-      final provider = Provider.of<TriggerPageProvider>(context, listen: false);
-      final result = await provider.triggerMission();
-      // Check if the widget is still in the tree before showing a dialog.
-      if (context.mounted) {
-        _showMessage(context, result['success'] ? '成功' : '失敗', result['message']);
+    final provider = Provider.of<TriggerPageProvider>(context, listen: false);
+    final result = await provider.triggerMission();
+
+    if (result['success'] == true && context.mounted) {
+      // Find the selected robot's info to get the UUID
+      final robotData = provider.robotInfo.firstWhere(
+        (r) => r['sn'] == provider.selectedRobot,
+        orElse: () => {}, // Return an empty map if not found
+      );
+      final robotUuid = robotData['chassisUuid'];
+      final selectedMap = provider.selectedDestMap;
+
+      // Check if we have all the data needed to show the map
+      if (robotUuid != null && robotUuid.isNotEmpty && selectedMap != null) {
+        showDialog(
+          context: context,
+          // Use a barrier to make it a fullscreen-like dialog
+          barrierDismissible: false,
+          builder: (_) => MapTrackingDialog(
+            mapImagePartialPath: selectedMap.mapImage,
+            mapOrigin: selectedMap.mapOrigin,
+            robotUuid: robotUuid,
+            responseText: result['message'],
+          ),
+        );
+      } else {
+        // Fallback to the old simple dialog if data is missing
+        _showMessage(context, '成功 (但無法顯示地圖)', result['message']);
       }
+    } else if (context.mounted) {
+      _showMessage(context, '失敗', result['message']);
+    }
   }
 
   @override
@@ -138,14 +168,14 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                     controller: provider.destController,
                     readOnly: true,
                     decoration: const InputDecoration(labelText: "遞送目標點", suffixIcon: Icon(Icons.arrow_drop_down)),
-                    onTap: () => _showLocationPicker(context, provider.destController),
+                    onTap: () => _showLocationPicker(context, isDestination: true),
                   ),
 
                   TextFormField(
                     controller: provider.pickupController,
                     readOnly: true,
                     decoration: const InputDecoration(labelText: "中途取貨地點", suffixIcon: Icon(Icons.arrow_drop_down)),
-                    onTap: () => _showLocationPicker(context, provider.pickupController),
+                    onTap: () => _showLocationPicker(context, isDestination: false),
                   ),
 
                   TextFormField(controller: provider.nameController, decoration: const InputDecoration(labelText: "物品名稱")),

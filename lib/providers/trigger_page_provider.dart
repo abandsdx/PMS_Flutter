@@ -17,6 +17,7 @@ class TriggerPageProvider with ChangeNotifier {
 
   Field? _selectedField;
   String? _selectedRobot = notSpecified;
+  MapInfo? _selectedDestMap;
   String _missionType = "到取貨點取貨再送到目標點";
   String _deviceType = "單艙機器人";
 
@@ -37,6 +38,7 @@ class TriggerPageProvider with ChangeNotifier {
 
   Field? get selectedField => _selectedField;
   String? get selectedRobot => _selectedRobot;
+  MapInfo? get selectedDestMap => _selectedDestMap; // Getter for the selected map
   String get missionType => _missionType;
   String get deviceType => _deviceType;
   List<String> get robotList => [notSpecified, ..._robotList];
@@ -59,11 +61,21 @@ class TriggerPageProvider with ChangeNotifier {
   void selectField(Field? newField) {
     if (newField == null || newField.fieldId == _selectedField?.fieldId) return;
     _selectedField = newField;
-    _selectedRobot = notSpecified; // Default to not specified
+    _selectedRobot = notSpecified;
     _robotList = [];
     _robotInfo = [];
+    destController.clear();
+    pickupController.clear();
+    _selectedDestMap = null;
     notifyListeners();
     fetchRobots();
+  }
+
+  /// Sets the destination location and the map it belongs to.
+  void setDestination(Map<String, dynamic> selection) {
+    _selectedDestMap = selection['map'] as MapInfo;
+    destController.text = selection['location'] as String;
+    notifyListeners();
   }
 
   /// Updates the selected robot from the dropdown.

@@ -74,7 +74,12 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> with Single
                             return ListTile(
                               title: Text(location),
                               onTap: () {
-                                Navigator.of(context).pop(location);
+                                // Return both the map and the location
+                                final result = {
+                                  'map': map,
+                                  'location': location,
+                                };
+                                Navigator.of(context).pop(result);
                               },
                             );
                           },
