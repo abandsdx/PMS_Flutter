@@ -15,6 +15,7 @@ dependencies:
   flutter_spinkit: ^5.2.0
   fluttertoast: ^8.2.4
   path_provider: ^2.0.15
+  mqtt_client: ^9.8.1 # For MQTT communication
 
 dev_dependencies:
   flutter_test:
