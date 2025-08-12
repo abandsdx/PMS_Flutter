@@ -89,14 +89,19 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
                       // Robot Position Painter
                       if (_currentPosition != null)
                         LayoutBuilder(builder: (context, constraints) {
-                           // Convert SLAM coordinates (mm) to world coordinates (m)
-                           final wx = _currentPosition!.x / 1000.0;
-                           final wy = _currentPosition!.y / 1000.0;
+                          // Guard against incomplete mapOrigin data.
+                          if (widget.mapOrigin.length < 2) {
+                            return const SizedBox.shrink(); // Don't draw if data is invalid.
+                          }
 
-                           // Convert world coordinates to pixel coordinates on the map
-                           // Using the formula from the user's Python script.
-                           final mapX = (widget.mapOrigin[0] - wy) / _resolution;
-                           final mapY = (widget.mapOrigin[1] - wx) / _resolution;
+                          // Convert SLAM coordinates (mm) to world coordinates (m)
+                          final wx = _currentPosition!.x / 1000.0;
+                          final wy = _currentPosition!.y / 1000.0;
+
+                          // Convert world coordinates to pixel coordinates on the map
+                          // Using the formula from the user's Python script.
+                          final mapX = (widget.mapOrigin[0] - wy) / _resolution;
+                          final mapY = (widget.mapOrigin[1] - wx) / _resolution;
 
                           return Positioned(
                             left: mapY,
