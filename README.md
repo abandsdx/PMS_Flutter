@@ -83,6 +83,7 @@ flutter build windows
 
 ```bash
 flutter config --enable-windows-desktop
+flutter create .
 ```
 - 如果有存金鑰或其他資訊在shared_preferences,可以在Poweshell下指令找出檔案
 ```bash
