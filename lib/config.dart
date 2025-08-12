@@ -34,6 +34,18 @@ class Config {
     }
   }
 
+  /// 清除 token
+  static Future<void> clearToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('Prod_token');
+      prodToken = '';
+      print("Cleared token");
+    } catch (e) {
+      print("Failed to clear token: $e");
+    }
+  }
+
   /// 讀取 theme
   static Future<void> loadTheme() async {
     try {
@@ -68,37 +80,40 @@ class Config {
   }
 
   static Future<void> fetchFields() async {
+    // This method now contains the full logic to get the detailed field map.
     if (prodToken.isEmpty) {
       print("No prodToken available, skip fetchFields");
       return;
     }
-    fields.clear();
-    final url = Uri.parse("$baseUrl/rms/mission/fields");
-    final headers = {
-      'Authorization': prodToken,
-      'Content-Type': 'application/json',
-    };
 
     try {
-      final resp = await http.get(url, headers: headers);
-      if (resp.statusCode == 200) {
-        final jsonResp = jsonDecode(resp.body);
-        final List<dynamic> fieldList = jsonResp['data']['payload'] ?? [];
-        for (var fieldData in fieldList) {
-          if (fieldData['fieldName'] != null && fieldData['fieldId'] != null) {
-            fields.add(Field(
-              fieldId: fieldData['fieldId'],
-              fieldName: fieldData['fieldName'],
-              maps: [], // Initially empty, will be populated by the new logic
-            ));
-          }
+      // The API requires a "trigger" call before fetching the map.
+      final refreshUrl = Uri.parse("http://152.69.194.121:8000/trigger-refresh");
+      final headers = {'Authorization': prodToken};
+      final refreshResponse = await http.post(refreshUrl, headers: headers);
+
+      if (refreshResponse.statusCode == 200) {
+        // A 3-second delay seems to be required by the backend.
+        await Future.delayed(const Duration(seconds: 3));
+
+        final mapUrl = Uri.parse("http://152.69.194.121:8000/field-map");
+        final mapResponse = await http.get(mapUrl, headers: headers);
+
+        if (mapResponse.statusCode == 200) {
+          final newFields = fieldFromJson(utf8.decode(mapResponse.bodyBytes));
+          fields = newFields;
+          print("Fetched and updated fields: ${fields.map((f) => f.fieldName).toList()}");
+        } else {
+          print("field-map fetch failed: ${mapResponse.statusCode}");
+          fields.clear(); // Clear fields on failure
         }
-        print("Fetched initial fields: ${fields.map((f) => f.fieldName).toList()}");
       } else {
-        print("fetchFields failed: ${resp.statusCode}");
+        print("trigger-refresh failed: ${refreshResponse.statusCode}");
+        fields.clear(); // Clear fields on failure
       }
     } catch (e) {
-      print("Fetch fields failed: $e");
+      print("Fetch fields failed with exception: $e");
+      fields.clear();
     }
   }
 }

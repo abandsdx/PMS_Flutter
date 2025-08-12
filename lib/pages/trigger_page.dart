@@ -26,7 +26,6 @@ class _TriggerPageState extends State<TriggerPage> with AutomaticKeepAliveClient
   final nameController = TextEditingController();
   final sizeController = TextEditingController();
   bool isLoadingRobots = false;
-  bool _isRefreshingFields = false;
   final ScrollController _horizontalController = ScrollController();
   final ScrollController _verticalController = ScrollController();
 
@@ -36,11 +35,12 @@ class _TriggerPageState extends State<TriggerPage> with AutomaticKeepAliveClient
   @override
   void initState() {
     super.initState();
+    // Data is now pre-loaded by the main screen's initState.
+    // We just need to initialize the state from the pre-loaded data.
     if (Config.fields.isNotEmpty) {
       selectedField = Config.fields.first;
       fetchRobots();
     }
-    _triggerRefresh();
   }
 
   @override
@@ -228,68 +228,6 @@ class _TriggerPageState extends State<TriggerPage> with AutomaticKeepAliveClient
 
     if (selectedLocation != null) {
       controller.text = selectedLocation;
-    }
-  }
-
-  Future<void> _triggerRefresh() async {
-    setState(() {
-      _isRefreshingFields = true;
-    });
-
-    try {
-      final headers = {'Authorization': Config.prodToken};
-
-      // 1. First API call: trigger-refresh
-      final refreshUrl = Uri.parse("http://152.69.194.121:8000/trigger-refresh");
-      final refreshResponse = await http.post(refreshUrl, headers: headers);
-
-      if (refreshResponse.statusCode == 200) {
-        // 2. Wait for 3 seconds
-        await Future.delayed(const Duration(seconds: 3));
-
-        // 3. Second API call: field-map
-        final mapUrl = Uri.parse("http://152.69.194.121:8000/field-map");
-        final mapResponse = await http.get(mapUrl, headers: headers);
-
-        if (mapResponse.statusCode == 200) {
-          if (!mounted) return;
-          final newFields = fieldFromJson(utf8.decode(mapResponse.bodyBytes));
-          setState(() {
-            Config.fields = newFields;
-            // If the current selection is no longer valid, pick the first one.
-            final currentSelectedId = selectedField?.fieldId;
-            if (Config.fields.isNotEmpty) {
-              final newSelection = Config.fields.firstWhere(
-                (f) => f.fieldId == currentSelectedId,
-                orElse: () => Config.fields.first,
-              );
-              if (selectedField?.fieldId != newSelection.fieldId) {
-                selectedField = newSelection;
-                fetchRobots(); // Reload robots for the new field
-              }
-            } else {
-              selectedField = null;
-              robotList.clear();
-              robotInfo.clear();
-            }
-          });
-          _showMessage("成功", "場域資訊已成功更新。");
-        } else {
-          throw Exception("無法獲取場域地圖，狀態碼：${mapResponse.statusCode}");
-        }
-      } else {
-        throw Exception("觸發刷新失敗，狀態碼：${refreshResponse.statusCode}");
-      }
-    } catch (e) {
-      if (mounted) {
-        _showMessage("錯誤", "更新場域資訊時發生錯誤：\n$e");
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isRefreshingFields = false;
-        });
-      }
     }
   }
 

@@ -93,9 +93,7 @@ void initState() {
           TriggerPage(),
           QueryPage(),
           ResetPage(),
-          SettingsPage(onApply: () {
-            setState(() {}); // Refresh all
-          }),
+          const SettingsPage(),
         ],
       ),
     );

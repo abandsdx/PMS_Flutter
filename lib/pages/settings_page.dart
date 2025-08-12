@@ -5,9 +5,7 @@ import '../providers/theme_provider.dart';
 import '../theme/themes.dart';
 
 class SettingsPage extends StatefulWidget {
-  final VoidCallback? onApply; // This is probably not needed anymore
-
-  const SettingsPage({Key? key, this.onApply}) : super(key: key);
+  const SettingsPage({Key? key}) : super(key: key);
 
   @override
   _SettingsPageState createState() => _SettingsPageState();
@@ -32,6 +30,35 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
+  Future<void> _confirmClearToken() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('確認'),
+        content: const Text('您確定要清除並移除已儲存的 API 金鑰嗎？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('確定清除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      await Config.clearToken();
+      _tokenController.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('API 金鑰已清除。')),
+      );
+    }
+  }
+
   void applySettings() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -39,23 +66,14 @@ class _SettingsPageState extends State<SettingsPage> {
     await Config.saveToken(_tokenController.text.trim());
     Config.prodToken = _tokenController.text.trim();
 
-    // Set the theme using the provider
-    // This will also save the theme and notify listeners to rebuild the UI
-    Provider.of<ThemeProvider>(context, listen: false).setTheme(_selectedThemeName);
-
-    // The onApply callback is likely no longer needed since Provider handles the rebuild.
-    // if (widget.onApply != null) {
-    //   widget.onApply!();
-    // }
-
-    // We don't need to call fetchFields here anymore, as that is part of a different workflow.
+    // The theme is now applied directly in the onChanged callback.
 
     if (context.mounted) {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('設定'),
-          content: const Text('設定已儲存！'),
+          content: const Text('API 金鑰已儲存。'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -85,6 +103,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   setState(() {
                     _selectedThemeName = v;
                   });
+                  // Apply the theme immediately
+                  Provider.of<ThemeProvider>(context, listen: false).setTheme(v);
                 }
               },
               decoration: const InputDecoration(labelText: '介面主題'),
@@ -104,12 +124,23 @@ class _SettingsPageState extends State<SettingsPage> {
               },
             ),
             const SizedBox(height: 20),
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton(
-                onPressed: applySettings,
-                child: const Text('套用設定'),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton(
+                  onPressed: _confirmClearToken,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                  ),
+                  child: const Text('清除金鑰'),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: applySettings,
+                  child: const Text('儲存設定'),
+                ),
+              ],
             ),
           ],
         ),
