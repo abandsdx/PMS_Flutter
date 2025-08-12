@@ -59,7 +59,6 @@ class _ResetPageState extends State<ResetPage> {
 
     try {
       final response = await http.post(url, headers: headers, body: body);
-      final data = json.decode(response.body);
 
       if (response.statusCode == 200) {
         showDialog(
