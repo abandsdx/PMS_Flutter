@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/field_data.dart';
 
+/// A dialog widget that allows the user to select a location (`rLocation`).
+///
+/// It displays a tabbed interface where each tab represents a floor.
+/// The content of each tab is a list of available locations on that floor.
 class LocationPickerDialog extends StatefulWidget {
+  /// The list of map information for a specific field, containing floors and locations.
   final List<MapInfo> maps;
 
   const LocationPickerDialog({Key? key, required this.maps}) : super(key: key);

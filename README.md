@@ -16,20 +16,20 @@ PMS Flutter 版本，用於串接 Nuwa Cloud PMS 與外部服務，同時支援 
 
 ## 🏗️ 軟體架構 (Software Architecture)
 
-本專案採用基於 `provider` 的狀態管理架構，將 UI、業務邏輯和資料模型分離。
+本專案採用基於 `provider` 的狀態管理架構，實作了類似 **MVVM (Model-View-ViewModel)** 的模式，將職責清晰地分離開來。
 
 -   **`lib/`**: 應用程式原始碼主目錄。
-    -   **`main.dart`**: 應用程式進入點。負責初始化設定、`ThemeProvider`，並啟動 App。
-    -   **`config.dart`**: 全域設定檔。負責管理 API 金鑰、主題偏好等，並透過 `shared_preferences` 進行本地儲存。
-    -   **`pages/`**: 存放主要的頁面元件，例如 `TriggerPage`, `QueryPage`, `SettingsPage`。
+    -   **`main.dart`**: 應用程式進入點。負責初始化全域服務、`ThemeProvider`，並啟動 App。
+    -   **`config.dart`**: **(Model)** 全域設定檔。負責管理 API 金鑰、主題偏好等，並透過 `shared_preferences` 進行本地儲存。
+    -   **`models/`**: **(Model)** 存放資料模型，定義了從 API 獲取的資料結構 (例如 `field_data.dart`)。
+    -   **`utils/api_service.dart`**: **(Service Layer)** 集中管理所有對外部 API 的網路請求，將資料獲取邏輯與業務邏輯分離。
+    -   **`providers/`**: **(ViewModel)** 存放狀態管理的 Provider。
+        -   `ThemeProvider.dart`: 管理當前主題，並在主題變更時通知 UI 更新。
+        -   `TriggerPageProvider.dart`: 負責 `TriggerPage` 的所有業務邏輯和狀態管理，例如處理使用者輸入、呼叫 `ApiService`、更新 UI 狀態等。
+    -   **`pages/`**: **(View)** 存放主要的頁面元件。這些元件是「啞的」(dumb)，它們只負責根據 Provider 的狀態來渲染 UI，並將使用者操作委派給 Provider 處理。
         -   `TriggerPage` 使用 `AutomaticKeepAliveClientMixin` 來保持頁面狀態，避免在 Tab 切換時重複載入資料。
-    -   **`widgets/`**: 存放共用的 UI 元件，例如 `LocationPickerDialog`。
-    -   **`providers/`**: 存放狀態管理的 Provider。
-        -   `ThemeProvider.dart`: 使用 `ChangeNotifier` 管理當前主題，並在主題變更時通知 UI 更新。
-    -   **`models/`**: 存放資料模型。
-        -   `field_data.dart`: 定義了從外部服務獲取的場域、地圖、地點等資料的類別。
-    -   **`theme/`**: 存放主題相關的定義。
-        -   `themes.dart`: 定義了 App 中所有可用的 `ThemeData` 物件。
+    -   **`widgets/`**: **(View)** 存放共用的 UI 元件，例如 `LocationPickerDialog`。
+    -   **`theme/`**: 存放主題相關的定義 (`themes.dart`)。
 
 ---
 

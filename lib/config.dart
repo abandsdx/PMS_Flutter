@@ -3,14 +3,29 @@ import 'package:http/http.dart' as http;
 import 'package:pms_external_service_flutter/models/field_data.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// A centralized class for managing global application configuration.
+///
+/// This class holds static variables for configuration data that needs to be
+/// accessed from anywhere in the app, such as API keys, base URLs, and theme
+/// preferences. It also provides methods for loading and saving these
+/// preferences to the device's local storage using [SharedPreferences].
 class Config {
+  /// The base URL for the Nuwa Robotics PMS API.
   static String baseUrl = "https://api.nuwarobotics.com/v1";
+
+  /// The name of the currently selected UI theme.
   static String theme = "darkly";
+
+  /// The production API token for authorization.
   static String prodToken = "";
+
+  /// A cached list of field data fetched from the external service.
   static List<Field> fields = [];
+
+  /// A cached list of trigger records for the ResetPage.
   static List<Map<String, dynamic>> triggerRecords = [];
 
-  /// 讀取 token
+  /// Loads the API token from local storage.
   static Future<void> loadToken() async {
     try {
       final prefs = await SharedPreferences.getInstance();
