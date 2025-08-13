@@ -65,6 +65,7 @@ class MqttService {
       _client.updates?.listen((List<MqttReceivedMessage<MqttMessage>> c) {
         final MqttPublishMessage message = c[0].payload as MqttPublishMessage;
         final payload = MqttPublishPayload.bytesToStringAsString(message.payload.message);
+        print("✅ MQTT Message Received: $payload");
 
         try {
           final jsonData = jsonDecode(payload);

@@ -27,10 +27,13 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
   final String _mapBaseUrl = 'http://64.110.100.118:8001';
 
   Point? _currentPosition;
+  Widget? _mapImageWidget; // To hold the cached image widget
 
   @override
   void initState() {
     super.initState();
+    // Create the image widget once to prevent reloading on setState.
+    _mapImageWidget = _buildMapImage();
     _connectMqtt();
   }
 
@@ -38,6 +41,7 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
   void _connectMqtt() async {
     await _mqttService.connect(widget.robotUuid);
     _mqttService.positionStream.listen((Point point) {
+      print("📍 Position Stream Update in Dialog: (${point.x}, ${point.y})");
       if (mounted) {
         setState(() {
           _currentPosition = point;
@@ -53,7 +57,7 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget _buildMapImage() {
     // Sanitize the path by removing spaces and the "outputs/" prefix.
     String finalPath = widget.mapImagePartialPath.replaceAll(' ', '');
     if (finalPath.startsWith('outputs/')) {
@@ -62,6 +66,24 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
     final fullMapUrl = '$_mapBaseUrl/$finalPath';
     print("🗺️ Loading map from URL: $fullMapUrl"); // Log the URL
 
+    return Image.network(
+      fullMapUrl,
+      fit: BoxFit.contain,
+      // Loading and error builders for better UX
+      loadingBuilder: (context, child, progress) {
+        return progress == null ? child : const Center(child: CircularProgressIndicator());
+      },
+      errorBuilder: (context, error, stackTrace) {
+        print("🚨 Failed to load map image.");
+        print("Error: $error");
+        print("StackTrace: $stackTrace");
+        return const Center(child: Text("無法載入地圖"));
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return AlertDialog(
       // Use a larger dialog size
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
@@ -80,21 +102,9 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
                   maxScale: 5.0,
                   child: Stack(
                     children: [
-                      // Map Image
-                      Image.network(
-                        fullMapUrl,
-                        fit: BoxFit.contain,
-                        // Loading and error builders for better UX
-                        loadingBuilder: (context, child, progress) {
-                          return progress == null ? child : const Center(child: CircularProgressIndicator());
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          print("🚨 Failed to load map image.");
-                          print("Error: $error");
-                          print("StackTrace: $stackTrace");
-                          return const Center(child: Text("無法載入地圖"));
-                        },
-                      ),
+                      // Map Image (using the cached widget)
+                      if (_mapImageWidget != null) _mapImageWidget!,
+
                       // Robot Position Painter
                       if (_currentPosition != null)
                         LayoutBuilder(builder: (context, constraints) {
@@ -111,6 +121,7 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
                           // Using the formula from the user's Python script.
                           final mapX = (widget.mapOrigin[0] - wy) / _resolution;
                           final mapY = (widget.mapOrigin[1] - wx) / _resolution;
+                          print("🤖 Calculated Pixel Coords: (x=$mapY, y=$mapX)");
 
                           return Positioned(
                             left: mapY,
