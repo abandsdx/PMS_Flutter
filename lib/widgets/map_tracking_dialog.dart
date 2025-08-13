@@ -41,7 +41,6 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
   void _connectMqtt() async {
     await _mqttService.connect(widget.robotUuid);
     _mqttService.positionStream.listen((Point point) {
-      print("📍 Position Stream Update in Dialog: (${point.x}, ${point.y})");
       if (mounted) {
         setState(() {
           _currentPosition = point;
@@ -56,7 +55,6 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
     super.dispose();
   }
 
-  @override
   Widget _buildMapImage() {
     // Sanitize the path by removing spaces and the "outputs/" prefix.
     String finalPath = widget.mapImagePartialPath.replaceAll(' ', '');
@@ -64,7 +62,6 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
       finalPath = finalPath.substring('outputs/'.length);
     }
     final fullMapUrl = '$_mapBaseUrl/$finalPath';
-    print("🗺️ Loading map from URL: $fullMapUrl"); // Log the URL
 
     return Image.network(
       fullMapUrl,
@@ -74,6 +71,7 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
         return progress == null ? child : const Center(child: CircularProgressIndicator());
       },
       errorBuilder: (context, error, stackTrace) {
+        // This is the version with the logging fix
         print("🚨 Failed to load map image.");
         print("Error: $error");
         print("StackTrace: $stackTrace");
@@ -84,6 +82,7 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
 
   @override
   Widget build(BuildContext context) {
+    print("🔄 BUILD METHOD: _currentPosition is ${_currentPosition?.x}, ${_currentPosition?.y}");
     return AlertDialog(
       // Use a larger dialog size
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
@@ -108,6 +107,7 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
                       // Robot Position Painter
                       if (_currentPosition != null)
                         LayoutBuilder(builder: (context, constraints) {
+                          print("✅ IF-BLOCK: Entering LayoutBuilder to draw position.");
                           // Guard against incomplete mapOrigin data.
                           if (widget.mapOrigin.length < 2) {
                             return const SizedBox.shrink(); // Don't draw if data is invalid.
@@ -121,7 +121,6 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
                           // Using the formula from the user's Python script.
                           final mapX = (widget.mapOrigin[0] - wy) / _resolution;
                           final mapY = (widget.mapOrigin[1] - wx) / _resolution;
-                          print("🤖 Calculated Pixel Coords: (x=$mapY, y=$mapX)");
 
                           return Positioned(
                             left: mapY,
