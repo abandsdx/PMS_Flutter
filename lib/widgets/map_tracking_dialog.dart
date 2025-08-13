@@ -54,9 +54,12 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // Sanitize the path by removing spaces, which can cause 404 errors.
-    final sanitizedPath = widget.mapImagePartialPath.replaceAll(' ', '');
-    final fullMapUrl = '$_mapBaseUrl/$sanitizedPath';
+    // Sanitize the path by removing spaces and the "outputs/" prefix.
+    String finalPath = widget.mapImagePartialPath.replaceAll(' ', '');
+    if (finalPath.startsWith('outputs/')) {
+      finalPath = finalPath.substring('outputs/'.length);
+    }
+    final fullMapUrl = '$_mapBaseUrl/$finalPath';
     print("🗺️ Loading map from URL: $fullMapUrl"); // Log the URL
 
     return AlertDialog(
