@@ -82,7 +82,6 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
 
   @override
   Widget build(BuildContext context) {
-    print("🔄 BUILD METHOD: _currentPosition is ${_currentPosition?.x}, ${_currentPosition?.y}");
     return AlertDialog(
       // Use a larger dialog size
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
@@ -105,37 +104,22 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
                       if (_mapImageWidget != null) _mapImageWidget!,
 
                       // Robot Position Painter
-                      if (_currentPosition != null)
-                        LayoutBuilder(builder: (context, constraints) {
-                          print("✅ IF-BLOCK: Entering LayoutBuilder to draw position.");
-                          // Guard against incomplete mapOrigin data.
-                          if (widget.mapOrigin.length < 2) {
-                            return const SizedBox.shrink(); // Don't draw if data is invalid.
-                          }
+                      if (_currentPosition != null && widget.mapOrigin.length >= 2)
+                        Builder(builder: (context) {
+                          // Calculate coordinates using the Java formula provided by the user.
+                          final robotX_m = _currentPosition!.x / 1000.0;
+                          final robotY_m = _currentPosition!.y / 1000.0;
 
-                          // Convert SLAM coordinates (mm) to world coordinates (m)
-                          final wx = _currentPosition!.x / 1000.0;
-                          final wy = _currentPosition!.y / 1000.0;
+                          // NOTE: The Java formula seems to have a different convention.
+                          // mapRobotX uses Y, mapRobotY uses X.
+                          final pixelX = widget.mapOrigin[0] - (robotY_m / _resolution);
+                          final pixelY = widget.mapOrigin[1] - (robotX_m / _resolution);
 
-                          // Convert world coordinates to pixel coordinates on the map
-                          // Using the formula from the user's Python script.
-                          final mapX = (widget.mapOrigin[0] - wy) / _resolution;
-                          final mapY = (widget.mapOrigin[1] - wx) / _resolution;
-
-                          return Positioned(
-                            left: mapY,
-                            top: mapX,
-                            child: Tooltip(
-                              message: '(${_currentPosition!.x}, ${_currentPosition!.y})',
-                              child: Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color: Colors.red.withOpacity(0.8),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 2),
-                                ),
-                              ),
+                          return CustomPaint(
+                            // The painter will paint across the entire stack.
+                            size: Size.infinite,
+                            painter: _RobotMarkerPainter(
+                              position: Offset(pixelX, pixelY),
                             ),
                           );
                         }),
@@ -174,5 +158,36 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
         ),
       ],
     );
+  }
+}
+
+
+/// A custom painter to draw the robot's marker on the map.
+///
+/// It draws a small, upward-pointing triangle at the robot's calculated position.
+class _RobotMarkerPainter extends CustomPainter {
+  final Offset position;
+
+  _RobotMarkerPainter({required this.position});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.blue
+      ..style = PaintingStyle.fill;
+
+    final path = Path();
+    path.moveTo(position.dx - 6, position.dy + 6); // Bottom-left
+    path.lineTo(position.dx + 6, position.dy + 6); // Bottom-right
+    path.lineTo(position.dx, position.dy - 6);     // Top-center
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _RobotMarkerPainter oldDelegate) {
+    // Repaint only if the position has changed.
+    return oldDelegate.position != position;
   }
 }
