@@ -22,6 +22,7 @@ class MapTrackingDialog extends StatefulWidget {
 }
 
 class _MapTrackingDialogState extends State<MapTrackingDialog> {
+  // Get the singleton instance of the MqttService.
   final MqttService _mqttService = MqttService();
   final double _resolution = 0.05; // As specified by user
   final String _mapBaseUrl = 'http://64.110.100.118:8001';
@@ -38,8 +39,11 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
   }
 
   /// Initializes the MQTT service, connects, and starts listening to the position stream.
-  void _connectMqtt() async {
-    await _mqttService.connect(widget.robotUuid);
+  void _connectMqtt() {
+    // The service handles connection logic internally. Just tell it to listen.
+    _mqttService.connectAndListen(widget.robotUuid);
+
+    // Set up the listener for this dialog instance.
     _mqttService.positionStream.listen((Point point) {
       if (mounted) {
         setState(() {
@@ -51,7 +55,8 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
 
   @override
   void dispose() {
-    _mqttService.disconnect();
+    // Unsubscribe from the topic when the dialog is closed.
+    _mqttService.disconnect(widget.robotUuid);
     super.dispose();
   }
 
