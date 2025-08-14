@@ -104,10 +104,6 @@ class MqttService {
     }
   }
 
-  void _onConnected() {
-    print('MQTT client connected.');
-  }
-
   void _onDisconnected() {
     print('MQTT client disconnected.');
   }
