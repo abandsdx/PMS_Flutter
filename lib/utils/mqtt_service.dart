@@ -74,6 +74,7 @@ class MqttService {
             if (position['x'] is int && position['y'] is int) {
               final point = Point(position['x'], position['y']);
               _positionStreamController.add(point);
+              print("📢 Point added to stream: (${point.x}, ${point.y})");
             }
           }
         } catch (e) {
