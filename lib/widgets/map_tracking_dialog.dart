@@ -1,13 +1,24 @@
-import 'dart:convert';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:pms_external_service_flutter/config.dart';
+import 'package:pms_external_service_flutter/models/field_data.dart';
 import '../utils/mqtt_service.dart';
+
+// Helper class for rendering fixed points with labels
+class _LabelPoint {
+  final String label;
+  final Offset offset;
+  _LabelPoint({required this.label, required this.offset});
+}
 
 /// A dialog that displays a map and tracks a robot's position in real-time via MQTT.
 class MapTrackingDialog extends StatefulWidget {
   final String mapImagePartialPath;
-  final List<double> mapOrigin;
   final String robotUuid;
   final String responseText;
+
+  // The mapOrigin is now fetched dynamically, so this parameter is no longer used.
+  final List<double> mapOrigin;
 
   const MapTrackingDialog({
     Key? key,
@@ -22,60 +33,117 @@ class MapTrackingDialog extends StatefulWidget {
 }
 
 class _MapTrackingDialogState extends State<MapTrackingDialog> {
-  // Get the singleton instance of the MqttService.
   final MqttService _mqttService = MqttService();
-  final double _resolution = 0.05; // As specified by user
-  final String _mapBaseUrl = 'http://64.110.100.118:8001';
+  final double _resolution = 0.05;
+  // Base URL for map images is now dynamic based on the field data source.
+  final String _mapBaseUrl = 'http://152.69.194.121:8000';
 
-  Point? _currentPosition;
-  Widget? _mapImageWidget; // To hold the cached image widget
-  final List<Offset> _trailPoints = []; // To store the robot's path
+  // State variables for dynamic data
+  List<double> _dynamicMapOrigin = [];
+  Widget? _mapImageWidget;
+  String _status = 'Initializing...';
+
+  // Data for drawing
+  final List<Offset> _trailPoints = [];
+  List<_LabelPoint> _fixedPointsPx = [];
+
+  // Master list of all possible named locations and their world coordinates.
+  // This is taken from the user's original code example.
+  final Map<String, List<double>> _allPossiblePoints = {
+    "EL0101": [0.17, -0.18], "EL0102": [0.18, -1.18], "MA01": [6.22, -9.53],
+    "R0101": [-1.29, -7.71], "R0102": [-1.29, -5.44], "R0103": [0.1, -6.09],
+    "R0104": [-8.41, 6.96], "SL0101": [0.19, -2.94], "SL0102": [0.15, -2.44],
+    "SL0103": [-8.04, 7.19], "VM0101": [-0.81, 4.08], "WL0101": [5.24, -9.66],
+    "XL0101": [5.53, -9.99],
+    // Added points from the user's API example to be comprehensive
+    "R0301": [-1.3, -2.0], // Guessed coordinates, user should verify
+    "R0302": [-1.3, -3.0], // Guessed coordinates, user should verify
+    "R0303": [-1.3, -4.0], // Guessed coordinates, user should verify
+  };
 
   @override
   void initState() {
     super.initState();
-    // Create the image widget once to prevent reloading on setState.
-    _mapImageWidget = _buildMapImage();
+    _setupMapAndPoints();
     _connectMqtt();
   }
 
-  /// Initializes the MQTT service, connects, and starts listening to the position stream.
-  void _connectMqtt() {
-    // Set up the listener for this dialog instance.
-    _mqttService.positionStream.listen((Point point) {
-      if (!mounted || widget.mapOrigin.length < 2) return;
+  /// Finds the correct map data, sets up the image widget, and calculates fixed point positions.
+  void _setupMapAndPoints() {
+    setState(() => _status = 'Loading map data...');
 
-      // Calculate the pixel offset for the new point using the Python formula.
+    // Find the relevant map field from the globally available Config.fields
+    Field? targetField;
+    try {
+      targetField = Config.fields.firstWhere(
+        (field) => field.mapImage == widget.mapImagePartialPath,
+      );
+    } catch (e) {
+      targetField = null; // Not found
+    }
+
+    if (targetField == null) {
+      setState(() => _status = 'Error: Map data not found for ${widget.mapImagePartialPath}');
+      return;
+    }
+
+    // Use the dynamic origin from the fetched field data
+    _dynamicMapOrigin = targetField.mapOrigin;
+
+    // Build the map image widget
+    _mapImageWidget = _buildMapImage(targetField.mapImage);
+
+    // --- Calculate fixed points to display ---
+    final pointsToDisplay = <_LabelPoint>[];
+    // Filter the master list of points by the rLocations specified for this map
+    for (String rLocationName in targetField.rLocations) {
+      if (_allPossiblePoints.containsKey(rLocationName)) {
+        final coords = _allPossiblePoints[rLocationName]!;
+        final wx = coords[0];
+        final wy = coords[1];
+
+        // Convert world coordinates to pixel coordinates using the dynamic origin
+        final mapX = (_dynamicMapOrigin[1] - wy) / _resolution;
+        final mapY = (_dynamicMapOrigin[0] - wx) / _resolution;
+        final px = Offset(mapX, mapY);
+
+        pointsToDisplay.add(_LabelPoint(label: rLocationName, offset: px));
+      }
+    }
+
+    setState(() {
+      _fixedPointsPx = pointsToDisplay;
+      _status = 'Map data loaded. Listening for robot position...';
+    });
+  }
+
+  /// Initializes the MQTT service and listens to the position stream.
+  void _connectMqtt() {
+    _mqttService.positionStream.listen((Point point) {
+      if (!mounted || _dynamicMapOrigin.length < 2) return;
+
+      // Calculate pixel offset using the DYNAMIC map origin
       final robotX_m = point.x / 1000.0;
       final robotY_m = point.y / 1000.0;
-
-      // map_y from python script corresponds to the 'left'/'dx' pixel coordinate
-      final pixelX = (widget.mapOrigin[1] - robotX_m) / _resolution;
-      // map_x from python script corresponds to the 'top'/'dy' pixel coordinate
-      final pixelY = (widget.mapOrigin[0] - robotY_m) / _resolution;
-
+      final pixelX = (_dynamicMapOrigin[1] - robotX_m) / _resolution;
+      final pixelY = (_dynamicMapOrigin[0] - robotY_m) / _resolution;
       final newOffset = Offset(pixelX, pixelY);
 
       setState(() {
-        _currentPosition = point;
         _trailPoints.add(newOffset);
       });
     });
-
-    // Connect after setting up the listener to avoid race conditions.
     _mqttService.connectAndListen(widget.robotUuid);
   }
 
   @override
   void dispose() {
-    // Unsubscribe from the topic when the dialog is closed.
     _mqttService.disconnect(widget.robotUuid);
     super.dispose();
   }
 
-  Widget _buildMapImage() {
-    // Sanitize the path by removing spaces and the "outputs/" prefix.
-    String finalPath = widget.mapImagePartialPath.replaceAll(' ', '');
+  Widget _buildMapImage(String imagePath) {
+    String finalPath = imagePath.replaceAll(' ', '');
     if (finalPath.startsWith('outputs/')) {
       finalPath = finalPath.substring('outputs/'.length);
     }
@@ -84,16 +152,11 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
     return Image.network(
       fullMapUrl,
       fit: BoxFit.contain,
-      // Loading and error builders for better UX
       loadingBuilder: (context, child, progress) {
         return progress == null ? child : const Center(child: CircularProgressIndicator());
       },
       errorBuilder: (context, error, stackTrace) {
-        // This is the version with the logging fix
-        print("🚨 Failed to load map image.");
-        print("Error: $error");
-        print("StackTrace: $stackTrace");
-        return const Center(child: Text("無法載入地圖"));
+        return Center(child: Text("Failed to load map: $error"));
       },
     );
   }
@@ -101,33 +164,35 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      // Use a larger dialog size
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-      title: const Text('即時位置追蹤'),
+      title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Real-time Position Tracking'),
+            Text(_status, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10)),
+          ],
+        ),
       contentPadding: const EdgeInsets.all(8),
       content: SizedBox(
-        width: MediaQuery.of(context).size.width, // Occupy full width
+        width: MediaQuery.of(context).size.width,
         child: Column(
-          mainAxisSize: MainAxisSize.min, // Try to be as small as possible vertically
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // --- Map View ---
             Expanded(
               child: Container(
                 decoration: BoxDecoration(border: Border.all(color: Colors.blueGrey)),
-                child: InteractiveViewer( // Allow panning and zooming
+                child: InteractiveViewer(
                   maxScale: 5.0,
                   child: Stack(
                     children: [
-                      // Map Image (using the cached widget)
                       if (_mapImageWidget != null) _mapImageWidget!,
-
-                      // Robot Position and Trail Painter
+                      // Robot trail and current position
                       if (_trailPoints.isNotEmpty)
                         CustomPaint(
                           size: Size.infinite,
-                          painter: _RobotMarkerPainter(
+                          painter: _RobotAndPointsPainter(
                             trailPoints: _trailPoints,
-                            currentPosition: _trailPoints.last,
+                            fixedPoints: _fixedPointsPx,
                           ),
                         ),
                     ],
@@ -136,22 +201,19 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
               ),
             ),
             const SizedBox(height: 12),
-            // --- API Response ---
             ExpansionTile(
-              title: const Text('顯示/隱藏 API 回應'),
+              title: const Text('Show/Hide API Response'),
               tilePadding: EdgeInsets.zero,
               children: [
                 Container(
                   width: double.infinity,
-                  height: 100, // Give it a max height
+                  height: 100,
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surfaceVariant,
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: SingleChildScrollView(
-                    child: SelectableText(widget.responseText),
-                  ),
+                  child: SingleChildScrollView(child: SelectableText(widget.responseText)),
                 ),
               ],
             ),
@@ -161,56 +223,68 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('關閉'),
+          child: const Text('Close'),
         ),
       ],
     );
   }
 }
 
-
-/// A custom painter to draw the robot's marker and its trail on the map.
-class _RobotMarkerPainter extends CustomPainter {
+/// Custom painter for both the robot's trail and the fixed points.
+class _RobotAndPointsPainter extends CustomPainter {
   final List<Offset> trailPoints;
-  final Offset currentPosition;
+  final List<_LabelPoint> fixedPoints;
 
-  _RobotMarkerPainter({required this.trailPoints, required this.currentPosition});
+  _RobotAndPointsPainter({required this.trailPoints, required this.fixedPoints});
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Paint for the trail
-    final trailPaint = Paint()
-      ..color = Colors.blue.withOpacity(0.8)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
+    // 1. Paint the fixed points (red dots and labels)
+    for (final point in fixedPoints) {
+      final paintDot = Paint()..color = Colors.red;
+      canvas.drawCircle(point.offset, 4, paintDot); // Smaller dot
 
-    // Draw the trail if there are enough points
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: point.label,
+          style: const TextStyle(fontSize: 10, color: Colors.red, backgroundColor: Color(0x99FFFFFF)),
+        ),
+        textDirection: ui.TextDirection.ltr,
+      );
+      textPainter.layout(minWidth: 0, maxWidth: size.width);
+      textPainter.paint(canvas, point.offset + const Offset(5, -18));
+    }
+
+    // 2. Paint the robot's trail (blue line)
     if (trailPoints.length > 1) {
-      final path = Path();
-      path.moveTo(trailPoints.first.dx, trailPoints.first.dy);
+      final trailPaint = Paint()
+        ..color = Colors.blue.withOpacity(0.8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0;
+      final path = Path()..moveTo(trailPoints.first.dx, trailPoints.first.dy);
       for (int i = 1; i < trailPoints.length; i++) {
         path.lineTo(trailPoints[i].dx, trailPoints[i].dy);
       }
       canvas.drawPath(path, trailPaint);
     }
 
-    // Paint for the current position marker (triangle)
-    final markerPaint = Paint()
-      ..color = Colors.green // Changed to green to match python example
-      ..style = PaintingStyle.fill;
-
-    final markerPath = Path();
-    markerPath.moveTo(currentPosition.dx - 6, currentPosition.dy + 6); // Bottom-left
-    markerPath.lineTo(currentPosition.dx + 6, currentPosition.dy + 6); // Bottom-right
-    markerPath.lineTo(currentPosition.dx, currentPosition.dy - 6);     // Top-center
-    markerPath.close();
-
-    canvas.drawPath(markerPath, markerPaint);
+    // 3. Paint the robot's current position (green circle with halo)
+    if (trailPoints.isNotEmpty) {
+      final currentPosition = trailPoints.last;
+      final paintDot = Paint()
+        ..style = PaintingStyle.fill
+        ..color = const Color(0xFF2E7D32); // Green
+      canvas.drawCircle(currentPosition, 5, paintDot);
+      final paintHalo = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = const Color(0x802E7D32); // Transparent green
+      canvas.drawCircle(currentPosition, 9, paintHalo);
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _RobotMarkerPainter oldDelegate) {
-    // Repaint if the trail or the current position has changed.
-    return oldDelegate.trailPoints != trailPoints || oldDelegate.currentPosition != currentPosition;
+  bool shouldRepaint(covariant _RobotAndPointsPainter oldDelegate) {
+    return oldDelegate.trailPoints != trailPoints || oldDelegate.fixedPoints != fixedPoints;
   }
 }
