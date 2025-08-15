@@ -45,11 +45,15 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
     _mqttService.positionStream.listen((Point point) {
       if (!mounted || widget.mapOrigin.length < 2) return;
 
-      // Calculate the pixel offset for the new point using the Java formula.
+      // Calculate the pixel offset for the new point using the Python formula.
       final robotX_m = point.x / 1000.0;
       final robotY_m = point.y / 1000.0;
-      final pixelX = widget.mapOrigin[0] - (robotY_m / _resolution);
-      final pixelY = widget.mapOrigin[1] - (robotX_m / _resolution);
+
+      // map_y from python script corresponds to the 'left'/'dx' pixel coordinate
+      final pixelX = (widget.mapOrigin[1] - robotX_m) / _resolution;
+      // map_x from python script corresponds to the 'top'/'dy' pixel coordinate
+      final pixelY = (widget.mapOrigin[0] - robotY_m) / _resolution;
+
       final newOffset = Offset(pixelX, pixelY);
 
       setState(() {
