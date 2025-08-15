@@ -68,16 +68,13 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
     setState(() => _status = 'Loading map data...');
 
     MapInfo? targetMapInfo;
-    // **CORRECTED LOGIC**: Iterate through fields and their nested maps
     for (final field in Config.fields) {
       try {
         targetMapInfo = field.maps.firstWhere(
           (mapInfo) => mapInfo.mapImage == widget.mapImagePartialPath,
         );
-        // If found, break the loop
         break;
       } catch (e) {
-        // Not in this field, continue to the next
         continue;
       }
     }
@@ -87,13 +84,15 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
       return;
     }
 
-    // Use the dynamic origin from the fetched MapInfo object
-    _dynamicMapOrigin = targetMapInfo.mapOrigin;
+    // **FIX**: Add defensive check for mapOrigin length to prevent RangeError.
+    if (targetMapInfo.mapOrigin.length < 2) {
+      setState(() => _status = 'Error: Invalid map origin data for ${targetMapInfo.mapName}');
+      return;
+    }
 
-    // Build the map image widget using the correct image path
+    _dynamicMapOrigin = targetMapInfo.mapOrigin;
     _mapImageWidget = _buildMapImage(targetMapInfo.mapImage);
 
-    // Calculate fixed points to display
     final pointsToDisplay = <_LabelPoint>[];
     for (String rLocationName in targetMapInfo.rLocations) {
       if (_allPossiblePoints.containsKey(rLocationName)) {
@@ -183,7 +182,6 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
                   child: Stack(
                     children: [
                       if (_mapImageWidget != null) _mapImageWidget!,
-                      // Combined painter for robot and fixed points
                       CustomPaint(
                         size: Size.infinite,
                         painter: _RobotAndPointsPainter(
