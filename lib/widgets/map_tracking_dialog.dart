@@ -29,6 +29,7 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
 
   Point? _currentPosition;
   Widget? _mapImageWidget; // To hold the cached image widget
+  final List<Offset> _trailPoints = []; // To store the robot's path
 
   @override
   void initState() {
@@ -40,17 +41,25 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
 
   /// Initializes the MQTT service, connects, and starts listening to the position stream.
   void _connectMqtt() {
-    // The service handles connection logic internally. Just tell it to listen.
-    _mqttService.connectAndListen(widget.robotUuid);
-
     // Set up the listener for this dialog instance.
     _mqttService.positionStream.listen((Point point) {
-      if (mounted) {
-        setState(() {
-          _currentPosition = point;
-        });
-      }
+      if (!mounted || widget.mapOrigin.length < 2) return;
+
+      // Calculate the pixel offset for the new point using the Java formula.
+      final robotX_m = point.x / 1000.0;
+      final robotY_m = point.y / 1000.0;
+      final pixelX = widget.mapOrigin[0] - (robotY_m / _resolution);
+      final pixelY = widget.mapOrigin[1] - (robotX_m / _resolution);
+      final newOffset = Offset(pixelX, pixelY);
+
+      setState(() {
+        _currentPosition = point;
+        _trailPoints.add(newOffset);
+      });
     });
+
+    // Connect after setting up the listener to avoid race conditions.
+    _mqttService.connectAndListen(widget.robotUuid);
   }
 
   @override
@@ -108,26 +117,15 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
                       // Map Image (using the cached widget)
                       if (_mapImageWidget != null) _mapImageWidget!,
 
-                      // Robot Position Painter
-                      if (_currentPosition != null && widget.mapOrigin.length >= 2)
-                        Builder(builder: (context) {
-                          // Calculate coordinates using the Java formula provided by the user.
-                          final robotX_m = _currentPosition!.x / 1000.0;
-                          final robotY_m = _currentPosition!.y / 1000.0;
-
-                          // NOTE: The Java formula seems to have a different convention.
-                          // mapRobotX uses Y, mapRobotY uses X.
-                          final pixelX = widget.mapOrigin[0] - (robotY_m / _resolution);
-                          final pixelY = widget.mapOrigin[1] - (robotX_m / _resolution);
-
-                          return CustomPaint(
-                            // The painter will paint across the entire stack.
-                            size: Size.infinite,
-                            painter: _RobotMarkerPainter(
-                              position: Offset(pixelX, pixelY),
-                            ),
-                          );
-                        }),
+                      // Robot Position and Trail Painter
+                      if (_trailPoints.isNotEmpty)
+                        CustomPaint(
+                          size: Size.infinite,
+                          painter: _RobotMarkerPainter(
+                            trailPoints: _trailPoints,
+                            currentPosition: _trailPoints.last,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -167,32 +165,48 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
 }
 
 
-/// A custom painter to draw the robot's marker on the map.
-///
-/// It draws a small, upward-pointing triangle at the robot's calculated position.
+/// A custom painter to draw the robot's marker and its trail on the map.
 class _RobotMarkerPainter extends CustomPainter {
-  final Offset position;
+  final List<Offset> trailPoints;
+  final Offset currentPosition;
 
-  _RobotMarkerPainter({required this.position});
+  _RobotMarkerPainter({required this.trailPoints, required this.currentPosition});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.blue
+    // Paint for the trail
+    final trailPaint = Paint()
+      ..color = Colors.blue.withOpacity(0.8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    // Draw the trail if there are enough points
+    if (trailPoints.length > 1) {
+      final path = Path();
+      path.moveTo(trailPoints.first.dx, trailPoints.first.dy);
+      for (int i = 1; i < trailPoints.length; i++) {
+        path.lineTo(trailPoints[i].dx, trailPoints[i].dy);
+      }
+      canvas.drawPath(path, trailPaint);
+    }
+
+    // Paint for the current position marker (triangle)
+    final markerPaint = Paint()
+      ..color = Colors.green // Changed to green to match python example
       ..style = PaintingStyle.fill;
 
-    final path = Path();
-    path.moveTo(position.dx - 6, position.dy + 6); // Bottom-left
-    path.lineTo(position.dx + 6, position.dy + 6); // Bottom-right
-    path.lineTo(position.dx, position.dy - 6);     // Top-center
-    path.close();
+    final markerPath = Path();
+    markerPath.moveTo(currentPosition.dx - 6, currentPosition.dy + 6); // Bottom-left
+    markerPath.lineTo(currentPosition.dx + 6, currentPosition.dy + 6); // Bottom-right
+    markerPath.lineTo(currentPosition.dx, currentPosition.dy - 6);     // Top-center
+    markerPath.close();
 
-    canvas.drawPath(path, paint);
+    canvas.drawPath(markerPath, markerPaint);
   }
 
   @override
   bool shouldRepaint(covariant _RobotMarkerPainter oldDelegate) {
-    // Repaint only if the position has changed.
-    return oldDelegate.position != position;
+    // Repaint if the trail or the current position has changed.
+    return oldDelegate.trailPoints != trailPoints || oldDelegate.currentPosition != currentPosition;
   }
 }
