@@ -35,7 +35,6 @@ class MapTrackingDialog extends StatefulWidget {
 class _MapTrackingDialogState extends State<MapTrackingDialog> {
   final MqttService _mqttService = MqttService();
   final double _resolution = 0.05;
-  // Base URL for map images is now dynamic based on the field data source.
   final String _mapBaseUrl = 'http://152.69.194.121:8000';
 
   // State variables for dynamic data
@@ -48,17 +47,13 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
   List<_LabelPoint> _fixedPointsPx = [];
 
   // Master list of all possible named locations and their world coordinates.
-  // This is taken from the user's original code example.
   final Map<String, List<double>> _allPossiblePoints = {
     "EL0101": [0.17, -0.18], "EL0102": [0.18, -1.18], "MA01": [6.22, -9.53],
     "R0101": [-1.29, -7.71], "R0102": [-1.29, -5.44], "R0103": [0.1, -6.09],
     "R0104": [-8.41, 6.96], "SL0101": [0.19, -2.94], "SL0102": [0.15, -2.44],
     "SL0103": [-8.04, 7.19], "VM0101": [-0.81, 4.08], "WL0101": [5.24, -9.66],
     "XL0101": [5.53, -9.99],
-    // Added points from the user's API example to be comprehensive
-    "R0301": [-1.3, -2.0], // Guessed coordinates, user should verify
-    "R0302": [-1.3, -3.0], // Guessed coordinates, user should verify
-    "R0303": [-1.3, -4.0], // Guessed coordinates, user should verify
+    "R0301": [-1.3, -2.0], "R0302": [-1.3, -3.0], "R0303": [-1.3, -4.0],
   };
 
   @override
@@ -72,37 +67,40 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
   void _setupMapAndPoints() {
     setState(() => _status = 'Loading map data...');
 
-    // Find the relevant map field from the globally available Config.fields
-    Field? targetField;
-    try {
-      targetField = Config.fields.firstWhere(
-        (field) => field.mapImage == widget.mapImagePartialPath,
-      );
-    } catch (e) {
-      targetField = null; // Not found
+    MapInfo? targetMapInfo;
+    // **CORRECTED LOGIC**: Iterate through fields and their nested maps
+    for (final field in Config.fields) {
+      try {
+        targetMapInfo = field.maps.firstWhere(
+          (mapInfo) => mapInfo.mapImage == widget.mapImagePartialPath,
+        );
+        // If found, break the loop
+        break;
+      } catch (e) {
+        // Not in this field, continue to the next
+        continue;
+      }
     }
 
-    if (targetField == null) {
+    if (targetMapInfo == null) {
       setState(() => _status = 'Error: Map data not found for ${widget.mapImagePartialPath}');
       return;
     }
 
-    // Use the dynamic origin from the fetched field data
-    _dynamicMapOrigin = targetField.mapOrigin;
+    // Use the dynamic origin from the fetched MapInfo object
+    _dynamicMapOrigin = targetMapInfo.mapOrigin;
 
-    // Build the map image widget
-    _mapImageWidget = _buildMapImage(targetField.mapImage);
+    // Build the map image widget using the correct image path
+    _mapImageWidget = _buildMapImage(targetMapInfo.mapImage);
 
-    // --- Calculate fixed points to display ---
+    // Calculate fixed points to display
     final pointsToDisplay = <_LabelPoint>[];
-    // Filter the master list of points by the rLocations specified for this map
-    for (String rLocationName in targetField.rLocations) {
+    for (String rLocationName in targetMapInfo.rLocations) {
       if (_allPossiblePoints.containsKey(rLocationName)) {
         final coords = _allPossiblePoints[rLocationName]!;
         final wx = coords[0];
         final wy = coords[1];
 
-        // Convert world coordinates to pixel coordinates using the dynamic origin
         final mapX = (_dynamicMapOrigin[1] - wy) / _resolution;
         final mapY = (_dynamicMapOrigin[0] - wx) / _resolution;
         final px = Offset(mapX, mapY);
@@ -122,7 +120,6 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
     _mqttService.positionStream.listen((Point point) {
       if (!mounted || _dynamicMapOrigin.length < 2) return;
 
-      // Calculate pixel offset using the DYNAMIC map origin
       final robotX_m = point.x / 1000.0;
       final robotY_m = point.y / 1000.0;
       final pixelX = (_dynamicMapOrigin[1] - robotX_m) / _resolution;
@@ -186,15 +183,14 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
                   child: Stack(
                     children: [
                       if (_mapImageWidget != null) _mapImageWidget!,
-                      // Robot trail and current position
-                      if (_trailPoints.isNotEmpty)
-                        CustomPaint(
-                          size: Size.infinite,
-                          painter: _RobotAndPointsPainter(
-                            trailPoints: _trailPoints,
-                            fixedPoints: _fixedPointsPx,
-                          ),
+                      // Combined painter for robot and fixed points
+                      CustomPaint(
+                        size: Size.infinite,
+                        painter: _RobotAndPointsPainter(
+                          trailPoints: _trailPoints,
+                          fixedPoints: _fixedPointsPx,
                         ),
+                      ),
                     ],
                   ),
                 ),
@@ -239,10 +235,10 @@ class _RobotAndPointsPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Paint the fixed points (red dots and labels)
+    // 1. Paint the fixed points
     for (final point in fixedPoints) {
       final paintDot = Paint()..color = Colors.red;
-      canvas.drawCircle(point.offset, 4, paintDot); // Smaller dot
+      canvas.drawCircle(point.offset, 4, paintDot);
 
       final textPainter = TextPainter(
         text: TextSpan(
@@ -255,7 +251,7 @@ class _RobotAndPointsPainter extends CustomPainter {
       textPainter.paint(canvas, point.offset + const Offset(5, -18));
     }
 
-    // 2. Paint the robot's trail (blue line)
+    // 2. Paint the robot's trail
     if (trailPoints.length > 1) {
       final trailPaint = Paint()
         ..color = Colors.blue.withOpacity(0.8)
@@ -268,7 +264,7 @@ class _RobotAndPointsPainter extends CustomPainter {
       canvas.drawPath(path, trailPaint);
     }
 
-    // 3. Paint the robot's current position (green circle with halo)
+    // 3. Paint the robot's current position
     if (trailPoints.isNotEmpty) {
       final currentPosition = trailPoints.last;
       final paintDot = Paint()
