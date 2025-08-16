@@ -83,7 +83,6 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
       return;
     }
 
-    // **ULTRA-ROBUST FIX**: Nest all dependent logic inside the validation block.
     if (targetMapInfo.mapOrigin.length >= 2) {
       _dynamicMapOrigin = targetMapInfo.mapOrigin;
       _mapImageWidget = _buildMapImage(targetMapInfo.mapImage);
@@ -106,12 +105,13 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
       setState(() {
         _fixedPointsPx = pointsToDisplay;
         _status = 'Map data loaded. Listening for robot position...';
-        _isDataReady = true; // Set flag to allow MQTT processing
+        _isDataReady = true;
       });
     } else {
       setState(() {
-        _status = 'Error: Invalid map origin data for ${targetMapInfo.mapName}';
-        _isDataReady = false; // Ensure flag is false on error
+        // **FIX**: Added null assertion `!` to satisfy the compiler's null safety check.
+        _status = 'Error: Invalid map origin data for ${targetMapInfo!.mapName}';
+        _isDataReady = false;
       });
     }
   }
@@ -119,7 +119,6 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
   /// Initializes the MQTT service and listens to the position stream.
   void _connectMqtt() {
     _mqttService.positionStream.listen((Point point) {
-      // **ULTRA-ROBUST FIX**: Check the flag before doing anything.
       if (!mounted || !_isDataReady) {
         print("Warning: MQTT message received before map data was ready. Skipping point.");
         return;
@@ -188,7 +187,7 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
                   child: Stack(
                     children: [
                       if (_mapImageWidget != null) _mapImageWidget!,
-                      if (_isDataReady) // Only attempt to paint if data is ready
+                      if (_isDataReady)
                         CustomPaint(
                           size: Size.infinite,
                           painter: _RobotAndPointsPainter(
