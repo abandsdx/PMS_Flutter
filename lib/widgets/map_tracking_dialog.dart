@@ -33,7 +33,8 @@ class MapTrackingDialog extends StatefulWidget {
 class _MapTrackingDialogState extends State<MapTrackingDialog> {
   final MqttService _mqttService = MqttService();
   final double _resolution = 0.05;
-  final String _mapBaseUrl = 'http://152.69.194.121:8000';
+  // The base URL for the map images now correctly matches the API endpoint.
+  final String _mapBaseUrl = 'http://64.110.100.118:8001';
 
   // State variables for dynamic data
   List<double> _dynamicMapOrigin = [];
@@ -83,6 +84,7 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
       return;
     }
 
+    // Defensive check for mapOrigin length to prevent RangeError.
     if (targetMapInfo.mapOrigin.length >= 2) {
       _dynamicMapOrigin = targetMapInfo.mapOrigin;
       _mapImageWidget = _buildMapImage(targetMapInfo.mapImage);
@@ -109,7 +111,7 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
       });
     } else {
       setState(() {
-        // **FIX**: Added null assertion `!` to satisfy the compiler's null safety check.
+        // Added null assertion `!` to satisfy the compiler's null safety check.
         _status = 'Error: Invalid map origin data for ${targetMapInfo!.mapName}';
         _isDataReady = false;
       });
@@ -120,7 +122,6 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
   void _connectMqtt() {
     _mqttService.positionStream.listen((Point point) {
       if (!mounted || !_isDataReady) {
-        print("Warning: MQTT message received before map data was ready. Skipping point.");
         return;
       }
 
