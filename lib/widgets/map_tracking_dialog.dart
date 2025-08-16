@@ -16,8 +16,6 @@ class MapTrackingDialog extends StatefulWidget {
   final String mapImagePartialPath;
   final String robotUuid;
   final String responseText;
-
-  // The mapOrigin is now fetched dynamically, so this parameter is no longer used.
   final List<double> mapOrigin;
 
   const MapTrackingDialog({
@@ -41,6 +39,7 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
   List<double> _dynamicMapOrigin = [];
   Widget? _mapImageWidget;
   String _status = 'Initializing...';
+  bool _isDataReady = false; // Flag to prevent race conditions
 
   // Data for drawing
   final List<Offset> _trailPoints = [];
@@ -63,7 +62,7 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
     _connectMqtt();
   }
 
-  /// Finds the correct map data, sets up the image widget, and calculates fixed point positions.
+  /// Finds map data, sets up the image widget, and calculates fixed point positions.
   void _setupMapAndPoints() {
     setState(() => _status = 'Loading map data...');
 
@@ -84,40 +83,47 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
       return;
     }
 
-    // **FIX**: Add defensive check for mapOrigin length to prevent RangeError.
-    if (targetMapInfo.mapOrigin.length < 2) {
-      setState(() => _status = 'Error: Invalid map origin data for ${targetMapInfo.mapName}');
-      return;
-    }
+    // **ULTRA-ROBUST FIX**: Nest all dependent logic inside the validation block.
+    if (targetMapInfo.mapOrigin.length >= 2) {
+      _dynamicMapOrigin = targetMapInfo.mapOrigin;
+      _mapImageWidget = _buildMapImage(targetMapInfo.mapImage);
 
-    _dynamicMapOrigin = targetMapInfo.mapOrigin;
-    _mapImageWidget = _buildMapImage(targetMapInfo.mapImage);
+      final pointsToDisplay = <_LabelPoint>[];
+      for (String rLocationName in targetMapInfo.rLocations) {
+        if (_allPossiblePoints.containsKey(rLocationName)) {
+          final coords = _allPossiblePoints[rLocationName]!;
+          final wx = coords[0];
+          final wy = coords[1];
 
-    final pointsToDisplay = <_LabelPoint>[];
-    for (String rLocationName in targetMapInfo.rLocations) {
-      if (_allPossiblePoints.containsKey(rLocationName)) {
-        final coords = _allPossiblePoints[rLocationName]!;
-        final wx = coords[0];
-        final wy = coords[1];
+          final mapX = (_dynamicMapOrigin[1] - wy) / _resolution;
+          final mapY = (_dynamicMapOrigin[0] - wx) / _resolution;
+          final px = Offset(mapX, mapY);
 
-        final mapX = (_dynamicMapOrigin[1] - wy) / _resolution;
-        final mapY = (_dynamicMapOrigin[0] - wx) / _resolution;
-        final px = Offset(mapX, mapY);
-
-        pointsToDisplay.add(_LabelPoint(label: rLocationName, offset: px));
+          pointsToDisplay.add(_LabelPoint(label: rLocationName, offset: px));
+        }
       }
-    }
 
-    setState(() {
-      _fixedPointsPx = pointsToDisplay;
-      _status = 'Map data loaded. Listening for robot position...';
-    });
+      setState(() {
+        _fixedPointsPx = pointsToDisplay;
+        _status = 'Map data loaded. Listening for robot position...';
+        _isDataReady = true; // Set flag to allow MQTT processing
+      });
+    } else {
+      setState(() {
+        _status = 'Error: Invalid map origin data for ${targetMapInfo.mapName}';
+        _isDataReady = false; // Ensure flag is false on error
+      });
+    }
   }
 
   /// Initializes the MQTT service and listens to the position stream.
   void _connectMqtt() {
     _mqttService.positionStream.listen((Point point) {
-      if (!mounted || _dynamicMapOrigin.length < 2) return;
+      // **ULTRA-ROBUST FIX**: Check the flag before doing anything.
+      if (!mounted || !_isDataReady) {
+        print("Warning: MQTT message received before map data was ready. Skipping point.");
+        return;
+      }
 
       final robotX_m = point.x / 1000.0;
       final robotY_m = point.y / 1000.0;
@@ -182,13 +188,14 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
                   child: Stack(
                     children: [
                       if (_mapImageWidget != null) _mapImageWidget!,
-                      CustomPaint(
-                        size: Size.infinite,
-                        painter: _RobotAndPointsPainter(
-                          trailPoints: _trailPoints,
-                          fixedPoints: _fixedPointsPx,
+                      if (_isDataReady) // Only attempt to paint if data is ready
+                        CustomPaint(
+                          size: Size.infinite,
+                          painter: _RobotAndPointsPainter(
+                            trailPoints: _trailPoints,
+                            fixedPoints: _fixedPointsPx,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
