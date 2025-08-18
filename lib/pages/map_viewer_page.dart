@@ -8,7 +8,7 @@ import '../utils/mqtt_service.dart';
 // Helper class for rendering fixed points with labels
 class _LabelPoint {
   final String label;
-  final Offset offset;
+  final Offset offset; // This will now be the UN-SCALED pixel offset
   _LabelPoint({required this.label, required this.offset});
 }
 
@@ -16,7 +16,6 @@ class _LabelPoint {
 class MapViewerPage extends StatefulWidget {
   final String mapImagePartialPath;
   final String robotUuid;
-  // These are passed but may not be used directly in the UI anymore.
   final String responseText;
   final List<double> mapOrigin;
 
@@ -44,8 +43,8 @@ class _MapViewerPageState extends State<MapViewerPage> {
   bool _isDataReady = false;
 
   // Data for drawing
-  final List<Offset> _trailPoints = [];
-  List<_LabelPoint> _fixedPointsPx = [];
+  final List<Offset> _trailPoints = []; // Un-scaled pixel offsets
+  List<_LabelPoint> _fixedPointsPx = []; // Un-scaled pixel offsets
 
   final Map<String, List<double>> _allPossiblePoints = {
     "EL0101": [0.17, -0.18], "EL0102": [0.18, -1.18], "MA01": [6.22, -9.53],
@@ -60,7 +59,6 @@ class _MapViewerPageState extends State<MapViewerPage> {
   void initState() {
     super.initState();
     _setupMapAndPoints();
-    _connectMqtt();
   }
 
   Future<void> _loadImage(String imageUrl) async {
@@ -71,7 +69,7 @@ class _MapViewerPageState extends State<MapViewerPage> {
     }, onError: (exception, stackTrace) {
       imageCompleter.completeError(exception);
     }));
-    _mapImage = await imageCompleter.future;
+    return imageCompleter.future;
   }
 
   void _setupMapAndPoints() async {
@@ -103,13 +101,11 @@ class _MapViewerPageState extends State<MapViewerPage> {
       }
       final fullMapUrl = '$_mapBaseUrl/$finalPath';
 
+      ui.Image loadedImage;
       try {
-        await _loadImage(fullMapUrl);
+        loadedImage = await _loadImage(fullMapUrl);
       } catch(e) {
-         setState(() {
-            _status = 'Error loading map image: $e';
-            _isDataReady = false;
-         });
+         setState(() => _status = 'Error loading map image: $e');
          return;
       }
 
@@ -119,58 +115,35 @@ class _MapViewerPageState extends State<MapViewerPage> {
           final coords = _allPossiblePoints[rLocationName]!;
           final wx = coords[0];
           final wy = coords[1];
-
           final mapX = (_dynamicMapOrigin[0] - wy) / _resolution;
           final mapY = (_dynamicMapOrigin[1] - wx) / _resolution;
-          final px = Offset(mapX, mapY);
-
-          pointsToDisplay.add(_LabelPoint(label: rLocationName, offset: px));
+          pointsToDisplay.add(_LabelPoint(label: rLocationName, offset: Offset(mapX, mapY)));
         }
       }
 
-      // --- DEBUG LOGGING ---
-      print("--- MAP DEBUG INFO ---");
-      print("Map Size (w, h): ${_mapImage?.width}, ${_mapImage?.height}");
-      print("Map Origin (ox, oy): $_dynamicMapOrigin");
-      print("Map Resolution: $_resolution");
-      print("--- CALCULATING FIXED POINTS ---");
-      for (var p in pointsToDisplay) {
-        final originalPoint = _allPossiblePoints[p.label]!;
-        print("Point: ${p.label}, World(x,y): ${originalPoint}, PIXEL(x,y): ${p.offset}");
-      }
-      print("--- END DEBUG INFO ---");
-      // --- END DEBUG LOGGING ---
-
       setState(() {
+        _mapImage = loadedImage;
         _fixedPointsPx = pointsToDisplay;
         _status = 'Map data loaded. Listening for robot position...';
         _isDataReady = true;
       });
+      _connectMqtt(); // Connect to MQTT only after all data is ready
     } else {
-      setState(() {
-        _status = 'Error: Invalid map origin data for ${targetMapInfo!.mapName}';
-        _isDataReady = false;
-      });
+      setState(() => _status = 'Error: Invalid map origin data for ${targetMapInfo!.mapName}');
     }
   }
 
   void _connectMqtt() {
     _mqttService.positionStream.listen((Point point) {
-      if (!mounted || !_isDataReady) {
-        return;
-      }
+      if (!mounted || !_isDataReady) return;
+
       final robotX_m = point.x / 1000.0;
       final robotY_m = point.y / 1000.0;
       final pixelX = (_dynamicMapOrigin[0] - robotY_m) / _resolution;
       final pixelY = (_dynamicMapOrigin[1] - robotX_m) / _resolution;
-      final newOffset = Offset(pixelX, pixelY);
-
-      // --- DEBUG LOGGING ---
-      print("MQTT: World(x,y): ($robotX_m, $robotY_m) -> PIXEL(x,y): $newOffset");
-      // --- END DEBUG LOGGING ---
 
       setState(() {
-        _trailPoints.add(newOffset);
+        _trailPoints.add(Offset(pixelX, pixelY));
       });
     });
     _mqttService.connectAndListen(widget.robotUuid);
@@ -184,40 +157,6 @@ class _MapViewerPageState extends State<MapViewerPage> {
 
   @override
   Widget build(BuildContext context) {
-    Widget bodyContent;
-    if (!_isDataReady || _mapImage == null) {
-      bodyContent = Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(_status),
-          ],
-        ),
-      );
-    } else {
-      bodyContent = InteractiveViewer(
-        maxScale: 5.0,
-        child: SizedBox(
-          width: _mapImage!.width.toDouble(),
-          height: _mapImage!.height.toDouble(),
-          child: Stack(
-            children: [
-              RawImage(image: _mapImage!),
-              CustomPaint(
-                size: Size.infinite,
-                painter: _RobotAndPointsPainter(
-                  trailPoints: _trailPoints,
-                  fixedPoints: _fixedPointsPx,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Real-time Map Viewer'),
@@ -226,22 +165,63 @@ class _MapViewerPageState extends State<MapViewerPage> {
           child: Text(_status, style: const TextStyle(fontSize: 12)),
         ),
       ),
-      body: bodyContent,
+      body: _mapImage == null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(_status),
+                ],
+              ),
+            )
+          : InteractiveViewer(
+              maxScale: 5.0,
+              // Use a CustomPaint that fills the available space
+              child: CustomPaint(
+                size: Size.infinite,
+                painter: MapAndRobotPainter(
+                  mapImage: _mapImage!,
+                  trailPoints: _trailPoints,
+                  fixedPoints: _fixedPointsPx,
+                ),
+              ),
+            ),
     );
   }
 }
 
-class _RobotAndPointsPainter extends CustomPainter {
+/// A single painter that handles drawing the map background, fixed points, and robot trail.
+class MapAndRobotPainter extends CustomPainter {
+  final ui.Image mapImage;
   final List<Offset> trailPoints;
   final List<_LabelPoint> fixedPoints;
 
-  _RobotAndPointsPainter({required this.trailPoints, required this.fixedPoints});
+  MapAndRobotPainter({
+    required this.mapImage,
+    required this.trailPoints,
+    required this.fixedPoints,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
+    // 1. Draw the map image, scaled to fit the widget size
+    final paint = Paint();
+    final mapSourceRect = Rect.fromLTWH(0, 0, mapImage.width.toDouble(), mapImage.height.toDouble());
+    final canvasDestRect = Rect.fromLTWH(0, 0, size.width, size.height);
+    canvas.drawImageRect(mapImage, mapSourceRect, canvasDestRect, paint);
+
+    // 2. Calculate the scaling factor
+    final scaleX = size.width / mapImage.width;
+    final scaleY = size.height / mapImage.height;
+
+    // 3. Paint the fixed points, applying the scaling factor
     for (final point in fixedPoints) {
+      final scaledPosition = Offset(point.offset.dx * scaleX, point.offset.dy * scaleY);
       final paintDot = Paint()..color = Colors.red;
-      canvas.drawCircle(point.offset, 4, paintDot);
+      canvas.drawCircle(scaledPosition, 5, paintDot);
+
       final textPainter = TextPainter(
         text: TextSpan(
           text: point.label,
@@ -250,35 +230,37 @@ class _RobotAndPointsPainter extends CustomPainter {
         textDirection: ui.TextDirection.ltr,
       );
       textPainter.layout(minWidth: 0, maxWidth: size.width);
-      textPainter.paint(canvas, point.offset + const Offset(5, -18));
+      textPainter.paint(canvas, scaledPosition + const Offset(8, -18));
     }
+
+    // 4. Paint the robot's trail, applying the scaling factor
     if (trailPoints.length > 1) {
       final trailPaint = Paint()
         ..color = Colors.blue.withOpacity(0.8)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.0;
-      final path = Path()..moveTo(trailPoints.first.dx, trailPoints.first.dy);
+      final path = Path();
+      path.moveTo(trailPoints.first.dx * scaleX, trailPoints.first.dy * scaleY);
       for (int i = 1; i < trailPoints.length; i++) {
-        path.lineTo(trailPoints[i].dx, trailPoints[i].dy);
+        path.lineTo(trailPoints[i].dx * scaleX, trailPoints[i].dy * scaleY);
       }
       canvas.drawPath(path, trailPaint);
     }
+
+    // 5. Paint the robot's current position, applying the scaling factor
     if (trailPoints.isNotEmpty) {
-      final currentPosition = trailPoints.last;
-      final paintDot = Paint()
-        ..style = PaintingStyle.fill
-        ..color = const Color(0xFF2E7D32);
-      canvas.drawCircle(currentPosition, 5, paintDot);
-      final paintHalo = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..color = const Color(0x802E7D32);
-      canvas.drawCircle(currentPosition, 9, paintHalo);
+      final currentPosition = Offset(trailPoints.last.dx * scaleX, trailPoints.last.dy * scaleY);
+      final paintDot = Paint()..style = PaintingStyle.fill..color = const Color(0xFF2E7D32);
+      canvas.drawCircle(currentPosition, 6, paintDot);
+      final paintHalo = Paint()..style = PaintingStyle.stroke..strokeWidth = 2..color = const Color(0x802E7D32);
+      canvas.drawCircle(currentPosition, 10, paintHalo);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _RobotAndPointsPainter oldDelegate) {
-    return oldDelegate.trailPoints != trailPoints || oldDelegate.fixedPoints != fixedPoints;
+  bool shouldRepaint(covariant MapAndRobotPainter oldDelegate) {
+    return oldDelegate.mapImage != mapImage ||
+           oldDelegate.trailPoints != trailPoints ||
+           oldDelegate.fixedPoints != fixedPoints;
   }
 }
