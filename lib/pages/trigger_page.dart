@@ -5,6 +5,7 @@ import '../models/field_data.dart';
 import '../providers/trigger_page_provider.dart';
 import '../widgets/location_picker_dialog.dart';
 import '../widgets/map_tracking_dialog.dart';
+import './map_viewer_page.dart';
 
 /// A page for triggering new missions, acting as the main View.
 ///
@@ -94,15 +95,15 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
 
       // Check if we have all the data needed to show the map
       if (robotUuid != null && robotUuid.isNotEmpty && selectedMap != null) {
-        showDialog(
-          context: context,
-          // Use a barrier to make it a fullscreen-like dialog
-          barrierDismissible: false,
-          builder: (_) => MapTrackingDialog(
-            mapImagePartialPath: selectedMap.mapImage,
-            mapOrigin: selectedMap.mapOrigin,
-            robotUuid: robotUuid,
-            responseText: result['message'],
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MapViewerPage(
+              mapImagePartialPath: selectedMap.mapImage,
+              mapOrigin: selectedMap.mapOrigin,
+              robotUuid: robotUuid,
+              responseText: result['message'],
+            ),
           ),
         );
       } else {
