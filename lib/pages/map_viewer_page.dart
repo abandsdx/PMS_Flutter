@@ -128,6 +128,19 @@ class _MapViewerPageState extends State<MapViewerPage> {
         }
       }
 
+      // --- DEBUG LOGGING ---
+      print("--- MAP DEBUG INFO ---");
+      print("Map Size (w, h): ${_mapImage?.width}, ${_mapImage?.height}");
+      print("Map Origin (ox, oy): $_dynamicMapOrigin");
+      print("Map Resolution: $_resolution");
+      print("--- CALCULATING FIXED POINTS ---");
+      for (var p in pointsToDisplay) {
+        final originalPoint = _allPossiblePoints[p.label]!;
+        print("Point: ${p.label}, World(x,y): ${originalPoint}, PIXEL(x,y): ${p.offset}");
+      }
+      print("--- END DEBUG INFO ---");
+      // --- END DEBUG LOGGING ---
+
       setState(() {
         _fixedPointsPx = pointsToDisplay;
         _status = 'Map data loaded. Listening for robot position...';
@@ -151,6 +164,10 @@ class _MapViewerPageState extends State<MapViewerPage> {
       final pixelX = (_dynamicMapOrigin[0] - robotY_m) / _resolution;
       final pixelY = (_dynamicMapOrigin[1] - robotX_m) / _resolution;
       final newOffset = Offset(pixelX, pixelY);
+
+      // --- DEBUG LOGGING ---
+      print("MQTT: World(x,y): ($robotX_m, $robotY_m) -> PIXEL(x,y): $newOffset");
+      // --- END DEBUG LOGGING ---
 
       setState(() {
         _trailPoints.add(newOffset);
