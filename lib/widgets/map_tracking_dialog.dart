@@ -33,7 +33,6 @@ class MapTrackingDialog extends StatefulWidget {
 class _MapTrackingDialogState extends State<MapTrackingDialog> {
   final MqttService _mqttService = MqttService();
   final double _resolution = 0.05;
-  // The base URL for the map images now correctly matches the API endpoint.
   final String _mapBaseUrl = 'http://64.110.100.118:8001';
 
   // State variables for dynamic data
@@ -84,7 +83,6 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
       return;
     }
 
-    // Defensive check for mapOrigin length to prevent RangeError.
     if (targetMapInfo.mapOrigin.length >= 2) {
       _dynamicMapOrigin = targetMapInfo.mapOrigin;
       _mapImageWidget = _buildMapImage(targetMapInfo.mapImage);
@@ -96,8 +94,11 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
           final wx = coords[0];
           final wy = coords[1];
 
-          final mapX = (_dynamicMapOrigin[1] - wy) / _resolution;
-          final mapY = (_dynamicMapOrigin[0] - wx) / _resolution;
+          // FIX: Swapped indices to match the correct formula:
+          // pixel_x = (origin_x - world_y) / resolution
+          // pixel_y = (origin_y - world_x) / resolution
+          final mapX = (_dynamicMapOrigin[0] - wy) / _resolution;
+          final mapY = (_dynamicMapOrigin[1] - wx) / _resolution;
           final px = Offset(mapX, mapY);
 
           pointsToDisplay.add(_LabelPoint(label: rLocationName, offset: px));
@@ -111,7 +112,6 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
       });
     } else {
       setState(() {
-        // Added null assertion `!` to satisfy the compiler's null safety check.
         _status = 'Error: Invalid map origin data for ${targetMapInfo!.mapName}';
         _isDataReady = false;
       });
@@ -127,8 +127,10 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
 
       final robotX_m = point.x / 1000.0;
       final robotY_m = point.y / 1000.0;
-      final pixelX = (_dynamicMapOrigin[1] - robotX_m) / _resolution;
-      final pixelY = (_dynamicMapOrigin[0] - robotY_m) / _resolution;
+      // FIX: Swapped indices to match the correct formula.
+      // Note: robotX_m is wx, robotY_m is wy
+      final pixelX = (_dynamicMapOrigin[0] - robotY_m) / _resolution;
+      final pixelY = (_dynamicMapOrigin[1] - robotX_m) / _resolution;
       final newOffset = Offset(pixelX, pixelY);
 
       setState(() {
