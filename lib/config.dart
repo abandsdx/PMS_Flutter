@@ -103,7 +103,7 @@ class Config {
 
     try {
       // The API requires a "trigger" call before fetching the map.
-      final refreshUrl = Uri.parse("http://64.110.100.118:8001/trigger-refresh");
+      final refreshUrl = Uri.parse("http://152.69.194.121:8000/trigger-refresh");
       final headers = {'Authorization': prodToken};
       final refreshResponse = await http.post(refreshUrl, headers: headers);
 
@@ -111,7 +111,7 @@ class Config {
         // A 3-second delay seems to be required by the backend.
         await Future.delayed(const Duration(seconds: 3));
 
-        final mapUrl = Uri.parse("http://64.110.100.118:8001/field-map");
+        final mapUrl = Uri.parse("http://152.69.194.121:8000/field-map");
         final mapResponse = await http.get(mapUrl, headers: headers);
 
         if (mapResponse.statusCode == 200) {
