@@ -5,14 +5,12 @@ import 'package:pms_external_service_flutter/config.dart';
 import 'package:pms_external_service_flutter/models/field_data.dart';
 import '../utils/mqtt_service.dart';
 
-// Helper class for rendering fixed points with labels
 class _LabelPoint {
   final String label;
-  final Offset offset; // This will now be the UN-SCALED pixel offset
+  final Offset offset;
   _LabelPoint({required this.label, required this.offset});
 }
 
-/// A full-screen page that displays a map and tracks a robot's position.
 class MapViewerPage extends StatefulWidget {
   final String mapImagePartialPath;
   final String robotUuid;
@@ -36,15 +34,13 @@ class _MapViewerPageState extends State<MapViewerPage> {
   final double _resolution = 0.05;
   final String _mapBaseUrl = 'http://64.110.100.118:8001';
 
-  // State variables
   List<double> _dynamicMapOrigin = [];
   ui.Image? _mapImage;
   String _status = 'Initializing...';
   bool _isDataReady = false;
 
-  // Data for drawing
-  final List<Offset> _trailPoints = []; // Un-scaled pixel offsets
-  List<_LabelPoint> _fixedPointsPx = []; // Un-scaled pixel offsets
+  final List<Offset> _trailPoints = [];
+  List<_LabelPoint> _fixedPointsPx = [];
 
   final Map<String, List<double>> _allPossiblePoints = {
     "EL0101": [0.17, -0.18], "EL0102": [0.18, -1.18], "MA01": [6.22, -9.53],
@@ -61,7 +57,7 @@ class _MapViewerPageState extends State<MapViewerPage> {
     _setupMapAndPoints();
   }
 
-  Future<void> _loadImage(String imageUrl) async {
+  Future<ui.Image> _loadImage(String imageUrl) {
     final imageCompleter = Completer<ui.Image>();
     final imageStream = NetworkImage(imageUrl).resolve(const ImageConfiguration());
     imageStream.addListener(ImageStreamListener((info, _) {
@@ -115,9 +111,16 @@ class _MapViewerPageState extends State<MapViewerPage> {
           final coords = _allPossiblePoints[rLocationName]!;
           final wx = coords[0];
           final wy = coords[1];
-          final mapX = (_dynamicMapOrigin[0] - wy) / _resolution;
-          final mapY = (_dynamicMapOrigin[1] - wx) / _resolution;
-          pointsToDisplay.add(_LabelPoint(label: rLocationName, offset: Offset(mapX, mapY)));
+
+          // **FINAL FIX**: Using a standard, non-rotated formula.
+          final origin_x = _dynamicMapOrigin[0];
+          final origin_y = _dynamicMapOrigin[1];
+          final image_height = loadedImage.height;
+
+          final pixel_x = (wx - origin_x) / _resolution;
+          final pixel_y = image_height - ((wy - origin_y) / _resolution);
+
+          pointsToDisplay.add(_LabelPoint(label: rLocationName, offset: Offset(pixel_x, pixel_y)));
         }
       }
 
@@ -127,7 +130,7 @@ class _MapViewerPageState extends State<MapViewerPage> {
         _status = 'Map data loaded. Listening for robot position...';
         _isDataReady = true;
       });
-      _connectMqtt(); // Connect to MQTT only after all data is ready
+      _connectMqtt();
     } else {
       setState(() => _status = 'Error: Invalid map origin data for ${targetMapInfo!.mapName}');
     }
@@ -139,11 +142,17 @@ class _MapViewerPageState extends State<MapViewerPage> {
 
       final robotX_m = point.x / 1000.0;
       final robotY_m = point.y / 1000.0;
-      final pixelX = (_dynamicMapOrigin[0] - robotY_m) / _resolution;
-      final pixelY = (_dynamicMapOrigin[1] - robotX_m) / _resolution;
+
+      // **FINAL FIX**: Using a standard, non-rotated formula.
+      final origin_x = _dynamicMapOrigin[0];
+      final origin_y = _dynamicMapOrigin[1];
+      final image_height = _mapImage!.height; // Safe to use ! because _isDataReady is true
+
+      final pixel_x = (robotX_m - origin_x) / _resolution;
+      final pixel_y = image_height - ((robotY_m - origin_y) / _resolution);
 
       setState(() {
-        _trailPoints.add(Offset(pixelX, pixelY));
+        _trailPoints.add(Offset(pixel_x, pixel_y));
       });
     });
     _mqttService.connectAndListen(widget.robotUuid);
@@ -166,19 +175,9 @@ class _MapViewerPageState extends State<MapViewerPage> {
         ),
       ),
       body: _mapImage == null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text(_status),
-                ],
-              ),
-            )
+          ? Center(child: Text(_status))
           : InteractiveViewer(
               maxScale: 5.0,
-              // Use a CustomPaint that fills the available space
               child: CustomPaint(
                 size: Size.infinite,
                 painter: MapAndRobotPainter(
@@ -192,7 +191,6 @@ class _MapViewerPageState extends State<MapViewerPage> {
   }
 }
 
-/// A single painter that handles drawing the map background, fixed points, and robot trail.
 class MapAndRobotPainter extends CustomPainter {
   final ui.Image mapImage;
   final List<Offset> trailPoints;
@@ -206,54 +204,48 @@ class MapAndRobotPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Draw the map image, scaled to fit the widget size
+    // No coordinate transformation here. It's all done in the state.
+    // This painter just draws at the pixel coordinates it's given.
+    // The scaling is also handled by the logic that generates the pixel coordinates.
+    // Wait, the user's example did scaling here. Let's stick to that.
+
     final paint = Paint();
     final mapSourceRect = Rect.fromLTWH(0, 0, mapImage.width.toDouble(), mapImage.height.toDouble());
     final canvasDestRect = Rect.fromLTWH(0, 0, size.width, size.height);
     canvas.drawImageRect(mapImage, mapSourceRect, canvasDestRect, paint);
 
-    // 2. Calculate the scaling factor
     final scaleX = size.width / mapImage.width;
     final scaleY = size.height / mapImage.height;
 
-    // 3. Paint the fixed points, applying the scaling factor
+    // The pixel coordinates are now calculated with the standard formula, but they are still
+    // relative to the image's native resolution. We still need to scale them to the widget's on-screen size.
     for (final point in fixedPoints) {
       final scaledPosition = Offset(point.offset.dx * scaleX, point.offset.dy * scaleY);
       final paintDot = Paint()..color = Colors.red;
       canvas.drawCircle(scaledPosition, 5, paintDot);
-
       final textPainter = TextPainter(
-        text: TextSpan(
-          text: point.label,
-          style: const TextStyle(fontSize: 10, color: Colors.red, backgroundColor: Color(0x99FFFFFF)),
-        ),
+        text: TextSpan(text: point.label, style: const TextStyle(fontSize: 10, color: Colors.red, backgroundColor: Color(0x99FFFFFF))),
         textDirection: ui.TextDirection.ltr,
       );
-      textPainter.layout(minWidth: 0, maxWidth: size.width);
+      textPainter.layout();
       textPainter.paint(canvas, scaledPosition + const Offset(8, -18));
     }
 
-    // 4. Paint the robot's trail, applying the scaling factor
-    if (trailPoints.length > 1) {
-      final trailPaint = Paint()
-        ..color = Colors.blue.withOpacity(0.8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0;
-      final path = Path();
-      path.moveTo(trailPoints.first.dx * scaleX, trailPoints.first.dy * scaleY);
-      for (int i = 1; i < trailPoints.length; i++) {
-        path.lineTo(trailPoints[i].dx * scaleX, trailPoints[i].dy * scaleY);
-      }
-      canvas.drawPath(path, trailPaint);
-    }
-
-    // 5. Paint the robot's current position, applying the scaling factor
     if (trailPoints.isNotEmpty) {
-      final currentPosition = Offset(trailPoints.last.dx * scaleX, trailPoints.last.dy * scaleY);
-      final paintDot = Paint()..style = PaintingStyle.fill..color = const Color(0xFF2E7D32);
-      canvas.drawCircle(currentPosition, 6, paintDot);
-      final paintHalo = Paint()..style = PaintingStyle.stroke..strokeWidth = 2..color = const Color(0x802E7D32);
-      canvas.drawCircle(currentPosition, 10, paintHalo);
+        final path = Path();
+        final firstPoint = trailPoints.first;
+        path.moveTo(firstPoint.dx * scaleX, firstPoint.dy * scaleY);
+        for (int i = 1; i < trailPoints.length; i++) {
+            path.lineTo(trailPoints[i].dx * scaleX, trailPoints[i].dy * scaleY);
+        }
+        final trailPaint = Paint()..color = Colors.blue.withOpacity(0.8)..style = PaintingStyle.stroke..strokeWidth = 2.0;
+        canvas.drawPath(path, trailPaint);
+
+        final currentPosition = Offset(trailPoints.last.dx * scaleX, trailPoints.last.dy * scaleY);
+        final paintDot = Paint()..style = PaintingStyle.fill..color = const Color(0xFF2E7D32);
+        canvas.drawCircle(currentPosition, 6, paintDot);
+        final paintHalo = Paint()..style = PaintingStyle.stroke..strokeWidth = 2..color = const Color(0x802E7D32);
+        canvas.drawCircle(currentPosition, 10, paintHalo);
     }
   }
 
