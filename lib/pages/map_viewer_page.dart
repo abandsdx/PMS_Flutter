@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:pms_external_service_flutter/config.dart';
@@ -186,7 +187,7 @@ class _MapViewerPageState extends State<MapViewerPage> {
           height: _mapImage!.height.toDouble(),
           child: Stack(
             children: [
-              RawImage(image: _mapImage),
+              RawImage(image: _mapImage!),
               CustomPaint(
                 size: Size.infinite,
                 painter: _RobotAndPointsPainter(
