@@ -33,6 +33,7 @@ class _MapViewerPageState extends State<MapViewerPage> {
   final MqttService _mqttService = MqttService();
   final double _resolution = 0.05;
   final String _mapBaseUrl = 'http://64.110.100.118:8001';
+  static const double _logicalMapSize = 712.0;
 
   List<double> _dynamicMapOrigin = [];
   ui.Image? _mapImage;
@@ -59,12 +60,10 @@ class _MapViewerPageState extends State<MapViewerPage> {
 
   Future<ui.Image> _loadImage(String imageUrl) {
     final imageCompleter = Completer<ui.Image>();
-    final imageStream = NetworkImage(imageUrl).resolve(const ImageConfiguration());
-    imageStream.addListener(ImageStreamListener((info, _) {
-      imageCompleter.complete(info.image);
-    }, onError: (exception, stackTrace) {
-      imageCompleter.completeError(exception);
-    }));
+    NetworkImage(imageUrl).resolve(const ImageConfiguration()).addListener(
+      ImageStreamListener((info, _) => imageCompleter.complete(info.image),
+      onError: (exception, stackTrace) => imageCompleter.completeError(exception),
+    ));
     return imageCompleter.future;
   }
 
@@ -72,15 +71,12 @@ class _MapViewerPageState extends State<MapViewerPage> {
     setState(() => _status = 'Loading map data...');
 
     MapInfo? targetMapInfo;
-    for (final field in Config.fields) {
-      try {
-        targetMapInfo = field.maps.firstWhere(
-          (mapInfo) => mapInfo.mapImage == widget.mapImagePartialPath,
-        );
-        break;
-      } catch (e) {
-        continue;
-      }
+    try {
+      targetMapInfo = Config.fields
+          .expand((field) => field.maps)
+          .firstWhere((mapInfo) => mapInfo.mapImage == widget.mapImagePartialPath);
+    } catch (e) {
+      targetMapInfo = null;
     }
 
     if (targetMapInfo == null) {
@@ -112,15 +108,11 @@ class _MapViewerPageState extends State<MapViewerPage> {
           final wx = coords[0];
           final wy = coords[1];
 
-          // **FINAL FIX**: Using a standard, non-rotated formula.
-          final origin_x = _dynamicMapOrigin[0];
-          final origin_y = _dynamicMapOrigin[1];
-          final image_height = loadedImage.height;
+          final mapX = (_dynamicMapOrigin[0] - wy) / _resolution;
+          final mapY = (_dynamicMapOrigin[1] - wx) / _resolution;
+          final flippedY = _logicalMapSize - mapY;
 
-          final pixel_x = (wx - origin_x) / _resolution;
-          final pixel_y = image_height - ((wy - origin_y) / _resolution);
-
-          pointsToDisplay.add(_LabelPoint(label: rLocationName, offset: Offset(pixel_x, pixel_y)));
+          pointsToDisplay.add(_LabelPoint(label: rLocationName, offset: Offset(mapX, flippedY)));
         }
       }
 
@@ -143,16 +135,12 @@ class _MapViewerPageState extends State<MapViewerPage> {
       final robotX_m = point.x / 1000.0;
       final robotY_m = point.y / 1000.0;
 
-      // **FINAL FIX**: Using a standard, non-rotated formula.
-      final origin_x = _dynamicMapOrigin[0];
-      final origin_y = _dynamicMapOrigin[1];
-      final image_height = _mapImage!.height; // Safe to use ! because _isDataReady is true
-
-      final pixel_x = (robotX_m - origin_x) / _resolution;
-      final pixel_y = image_height - ((robotY_m - origin_y) / _resolution);
+      final pixelX = (_dynamicMapOrigin[0] - robotY_m) / _resolution;
+      final pixelY = (_dynamicMapOrigin[1] - robotX_m) / _resolution;
+      final flippedY = _logicalMapSize - pixelY;
 
       setState(() {
-        _trailPoints.add(Offset(pixel_x, pixel_y));
+        _trailPoints.add(Offset(pixelX, flippedY));
       });
     });
     _mqttService.connectAndListen(widget.robotUuid);
@@ -171,7 +159,10 @@ class _MapViewerPageState extends State<MapViewerPage> {
         title: const Text('Real-time Map Viewer'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(20.0),
-          child: Text(_status, style: const TextStyle(fontSize: 12)),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 4.0),
+            child: Text(_status, style: const TextStyle(fontSize: 12)),
+          ),
         ),
       ),
       body: _mapImage == null
@@ -204,21 +195,15 @@ class MapAndRobotPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // No coordinate transformation here. It's all done in the state.
-    // This painter just draws at the pixel coordinates it's given.
-    // The scaling is also handled by the logic that generates the pixel coordinates.
-    // Wait, the user's example did scaling here. Let's stick to that.
-
     final paint = Paint();
     final mapSourceRect = Rect.fromLTWH(0, 0, mapImage.width.toDouble(), mapImage.height.toDouble());
     final canvasDestRect = Rect.fromLTWH(0, 0, size.width, size.height);
     canvas.drawImageRect(mapImage, mapSourceRect, canvasDestRect, paint);
 
-    final scaleX = size.width / mapImage.width;
-    final scaleY = size.height / mapImage.height;
+    const logicalMapSize = 712.0;
+    final scaleX = size.width / logicalMapSize;
+    final scaleY = size.height / logicalMapSize;
 
-    // The pixel coordinates are now calculated with the standard formula, but they are still
-    // relative to the image's native resolution. We still need to scale them to the widget's on-screen size.
     for (final point in fixedPoints) {
       final scaledPosition = Offset(point.offset.dx * scaleX, point.offset.dy * scaleY);
       final paintDot = Paint()..color = Colors.red;
