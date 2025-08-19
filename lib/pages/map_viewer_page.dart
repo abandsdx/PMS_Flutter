@@ -42,7 +42,7 @@ class _MapViewerPageState extends State<MapViewerPage> {
   // -- Performance Optimization --
   Timer? _repaintTimer;
   final List<Offset> _pointBuffer = [];
-  final List<Offset> _trailPoints = [];
+  List<Offset> _trailPoints = [];
   // -- End Optimization --
 
   List<_LabelPoint> _fixedPointsPx = [];
@@ -127,11 +127,11 @@ class _MapViewerPageState extends State<MapViewerPage> {
   }
 
   void _connectMqtt() {
-    // Start a timer to update the UI at a fixed rate (e.g., 10fps)
     _repaintTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      if (_pointBuffer.isNotEmpty) {
+      if (_pointBuffer.isNotEmpty && mounted) {
         setState(() {
-          _trailPoints.addAll(_pointBuffer);
+          // **FIX**: Create a new list to trigger shouldRepaint
+          _trailPoints = List.from(_trailPoints)..addAll(_pointBuffer);
           _pointBuffer.clear();
         });
       }
@@ -146,7 +146,6 @@ class _MapViewerPageState extends State<MapViewerPage> {
       final pixelX = (_dynamicMapOrigin[0] - robotY_m) / _resolution;
       final pixelY = (_dynamicMapOrigin[1] - robotX_m) / _resolution;
 
-      // Add to buffer instead of calling setState directly
       _pointBuffer.add(Offset(pixelX, pixelY));
     });
     _mqttService.connectAndListen(widget.robotUuid);
@@ -154,7 +153,7 @@ class _MapViewerPageState extends State<MapViewerPage> {
 
   @override
   void dispose() {
-    _repaintTimer?.cancel(); // Cancel the timer
+    _repaintTimer?.cancel();
     _mqttService.disconnect(widget.robotUuid);
     super.dispose();
   }
