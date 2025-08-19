@@ -25,6 +25,12 @@ class TriggerPageProvider with ChangeNotifier {
   List<Map<String, String>> _robotInfo = [];
 
   bool _isLoadingRobots = false;
+  String _statusMessage = '';
+
+  // --- NEW: State for managing recent missions ---
+  List<Map<String, dynamic>> _recentMissions = [];
+  List<Map<String, dynamic>> get recentMissions => _recentMissions;
+  // --- END NEW ---
 
   // --- CONTROLLERS ---
 
@@ -44,14 +50,20 @@ class TriggerPageProvider with ChangeNotifier {
   List<String> get robotList => [notSpecified, ..._robotList];
   List<Map<String, String>> get robotInfo => _robotInfo;
   bool get isLoadingRobots => _isLoadingRobots;
+  String get statusMessage => _statusMessage;
 
   // --- INITIALIZATION ---
 
   TriggerPageProvider() {
     // Initialize with the first field if data is already loaded from startup.
     if (Config.fields.isNotEmpty) {
+      _statusMessage = "場域資料已載入。";
       _selectedField = Config.fields.first;
       fetchRobots();
+    } else {
+      _statusMessage = "正在讀取場域資料...";
+      // We can't do much if Config.fields is empty at this point,
+      // as fetching is done in main.dart. This message provides feedback.
     }
   }
 
@@ -101,6 +113,7 @@ class TriggerPageProvider with ChangeNotifier {
     if (_selectedField == null) return;
 
     _isLoadingRobots = true;
+    _statusMessage = "正在讀取 '${_selectedField!.fieldName}' 的機器人列表...";
     notifyListeners();
 
     try {
@@ -109,8 +122,10 @@ class TriggerPageProvider with ChangeNotifier {
       _robotInfo = robots;
       // Always default to "Not Specified" after fetching, letting the user choose.
       _selectedRobot = notSpecified;
+      _statusMessage = "機器人列表已更新。";
     } catch (e) {
       print("Failed to fetch robots: $e");
+      _statusMessage = "讀取機器人列表失敗: $e";
       _robotList = [];
       _robotInfo = [];
       _selectedRobot = notSpecified;
@@ -173,6 +188,27 @@ class TriggerPageProvider with ChangeNotifier {
         final currentRecords = await TriggerStorage.loadRecords();
         currentRecords.add(newRecord);
         await TriggerStorage.saveRecords(currentRecords);
+
+        // --- NEW: Add to recent missions list ---
+        if (_selectedDestMap != null && serialNumber.isNotEmpty) {
+          final robotData = _robotInfo.firstWhere((r) => r['sn'] == serialNumber, orElse: () => {});
+          _recentMissions.insert(0, {
+            'sn': serialNumber,
+            'destination': destController.text,
+            'timestamp': DateTime.now(),
+            // Data needed for the map dialog
+            'mapImagePartialPath': _selectedDestMap!.mapImage,
+            'mapOrigin': _selectedDestMap!.mapOrigin,
+            'robotUuid': robotData['chassisUuid'],
+            'responseText': response.body,
+          });
+          // Optional: Keep the list to a certain size, e.g., 10
+          if (_recentMissions.length > 10) {
+            _recentMissions.removeLast();
+          }
+          notifyListeners();
+        }
+        // --- END NEW ---
 
         return {'success': true, 'message': response.body};
       } else {

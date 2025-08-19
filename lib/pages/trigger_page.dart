@@ -5,7 +5,6 @@ import '../models/field_data.dart';
 import '../providers/trigger_page_provider.dart';
 import '../widgets/location_picker_dialog.dart';
 import '../widgets/map_tracking_dialog.dart';
-import './map_viewer_page.dart';
 
 /// A page for triggering new missions, acting as the main View.
 ///
@@ -85,31 +84,8 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
     final result = await provider.triggerMission();
 
     if (result['success'] == true && context.mounted) {
-      // Find the selected robot's info to get the UUID
-      final robotData = provider.robotInfo.firstWhere(
-        (r) => r['sn'] == provider.selectedRobot,
-        orElse: () => {}, // Return an empty map if not found
-      );
-      final robotUuid = robotData['chassisUuid'];
-      final selectedMap = provider.selectedDestMap;
-
-      // Check if we have all the data needed to show the map
-      if (robotUuid != null && robotUuid.isNotEmpty && selectedMap != null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MapViewerPage(
-              mapImagePartialPath: selectedMap.mapImage,
-              mapOrigin: selectedMap.mapOrigin,
-              robotUuid: robotUuid,
-              responseText: result['message'],
-            ),
-          ),
-        );
-      } else {
-        // Fallback to the old simple dialog if data is missing
-        _showMessage(context, '成功 (但無法顯示地圖)', result['message']);
-      }
+      // The logic to show the map dialog is now handled by the recent missions list button
+      _showMessage(context, '成功', '任務已成功觸發，請至右側列表查看地圖。');
     } else if (context.mounted) {
       _showMessage(context, '失敗', result['message']);
     }
@@ -193,6 +169,14 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                       ElevatedButton(onPressed: () => _onTriggerMission(context), child: const Text("觸發任務")),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  if (provider.statusMessage.isNotEmpty)
+                    Center(
+                      child: Text(
+                        provider.statusMessage,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -200,57 +184,85 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
 
           const SizedBox(width: 20),
 
-          // --- Right side: Robot Info Table ---
+          // --- Right side: Robot Info Table & Recent Missions ---
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
+                // --- Robot Info Table ---
+                Text("機器人狀態", style: Theme.of(context).textTheme.titleMedium),
+                SizedBox(
+                  height: 200, // Give the table a fixed height
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
                     child: provider.robotInfo.isEmpty
                         ? const Center(child: Text("無資料"))
                         : SingleChildScrollView(
-                            scrollDirection: Axis.vertical,
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: DataTable(
-                                columns: const [
-                                    DataColumn(label: Text("序號")),
-                                    DataColumn(label: Text("電量")),
-                                    DataColumn(label: Text("充電中")),
-                                    DataColumn(label: Text("連線狀態")),
-                                    DataColumn(label: Text("遞送狀態")),
-                                    DataColumn(label: Text("底車UUID")),
-                                    DataColumn(label: Text("底車版本")),
-                                    DataColumn(label: Text("軟體版本")),
-                                ],
-                                rows: provider.robotInfo.map((r) {
-                                  return DataRow(cells: [
-                                    DataCell(Text(r['sn'] ?? '')),
-                                    DataCell(Text(r['battery'] ?? '')),
-                                    DataCell(Text(r['charging'] ?? '')),
-                                    DataCell(Text(r['status'] ?? '')),
-                                    DataCell(Text(r['deliveriorStatus'] ?? '')),
-                                    DataCell(Text(r['chassisUuid'] ?? '')),
-                                    DataCell(Text(r['chassisVersion'] ?? '')),
-                                    DataCell(Text(r['imageVersion'] ?? '')),
-                                  ]);
-                                }).toList(),
-                              ),
+                            child: DataTable(
+                              columns: const [
+                                  DataColumn(label: Text("序號")), DataColumn(label: Text("電量")),
+                                  DataColumn(label: Text("充電中")), DataColumn(label: Text("狀態")),
+                                  DataColumn(label: Text("遞送狀態")),
+                              ],
+                              rows: provider.robotInfo.map((r) {
+                                return DataRow(cells: [
+                                  DataCell(Text(r['sn'] ?? '')), DataCell(Text(r['battery'] ?? '')),
+                                  DataCell(Text(r['charging'] ?? '')), DataCell(Text(r['status'] ?? '')),
+                                  DataCell(Text(r['deliveriorStatus'] ?? '')),
+                                ]);
+                              }).toList(),
                             ),
                           ),
                   ),
                 ),
-                const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerRight,
                   child: ElevatedButton(
                     onPressed: provider.isLoadingRobots ? null : provider.fetchRobots,
                     child: provider.isLoadingRobots
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.0))
-                        : const Text("重新整理機器人資訊"),
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.0))
+                        : const Text("重新整理"),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // --- Recent Missions List ---
+                Text("近期任務", style: Theme.of(context).textTheme.titleMedium),
+                Expanded(
+                  child: Container(
+                     decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+                     child: provider.recentMissions.isEmpty
+                      ? const Center(child: Text("無近期任務"))
+                      : ListView.builder(
+                          itemCount: provider.recentMissions.length,
+                          itemBuilder: (context, index) {
+                            final mission = provider.recentMissions[index];
+                            return Card(
+                              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              child: ListTile(
+                                leading: CircleAvatar(child: Text('${index + 1}')),
+                                title: Text('機器人 #${mission['sn']}'),
+                                subtitle: Text('目標: ${mission['destination']}'),
+                                trailing: ElevatedButton(
+                                  child: const Text('查看地圖'),
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      barrierDismissible: false,
+                                      builder: (_) => MapTrackingDialog(
+                                        mapImagePartialPath: mission['mapImagePartialPath'],
+                                        mapOrigin: mission['mapOrigin'],
+                                        robotUuid: mission['robotUuid'],
+                                        responseText: mission['responseText'],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                   ),
                 ),
               ],
