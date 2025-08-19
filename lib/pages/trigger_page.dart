@@ -198,22 +198,38 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                     decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
                     child: provider.robotInfo.isEmpty
                         ? const Center(child: Text("無資料"))
-                        : SingleChildScrollView(
-                            child: DataTable(
-                              columns: const [
-                                  DataColumn(label: Text("序號")), DataColumn(label: Text("電量")),
-                                  DataColumn(label: Text("充電中")), DataColumn(label: Text("狀態")),
-                                  DataColumn(label: Text("遞送狀態")),
+                        : SingleChildScrollView( // Vertical scroll
+                            child: SingleChildScrollView( // Horizontal scroll
+                              scrollDirection: Axis.horizontal,
+                              child: DataTable(
+                                columns: const [
+                                  DataColumn(label: Text("SN")),
+                                DataColumn(label: Text("軟體版本")),
+                                DataColumn(label: Text("充電中")),
+                                DataColumn(label: Text("電量")),
+                                DataColumn(label: Text("連線狀態")),
+                                DataColumn(label: Text("底盤ID")),
+                                DataColumn(label: Text("支援MCS")),
+                                DataColumn(label: Text("遞送狀態")),
+                                DataColumn(label: Text("層數")),
                               ],
                               rows: provider.robotInfo.map((r) {
+                                // Data parsing logic will be handled in the next step
                                 return DataRow(cells: [
-                                  DataCell(Text(r['sn'] ?? '')), DataCell(Text(r['battery'] ?? '')),
-                                  DataCell(Text(r['charging'] ?? '')), DataCell(Text(r['status'] ?? '')),
-                                  DataCell(Text(r['deliveriorStatus'] ?? '')),
+                                  DataCell(Text(r['sn']?.toString() ?? '')),
+                                  DataCell(Text(r['imageVersion']?.toString() ?? '')),
+                                  DataCell(Text(r['batteryCharging'] == true ? '是' : '否')),
+                                  DataCell(Text(r['battery']?.toString() ?? '')),
+                                  DataCell(Text(r['connStatus'] == 1 ? '在線' : '離線')),
+                                  DataCell(Text(r['chassisUuid']?.toString() ?? '')),
+                                  DataCell(Text(r['supportMCS'] == true ? '是支援' : '不支援')),
+                                  DataCell(Text(r['deliveriorStatus']?.toString() ?? '')),
+                                  DataCell(Text(r['middleLayer']?['data']?['maxPlatform']?.toString() ?? 'N/A')),
                                 ]);
                               }).toList(),
                             ),
                           ),
+                        ),
                   ),
                 ),
                 Align(

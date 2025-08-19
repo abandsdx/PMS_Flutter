@@ -22,7 +22,7 @@ class TriggerPageProvider with ChangeNotifier {
   String _deviceType = "單艙機器人";
 
   List<String> _robotList = [];
-  List<Map<String, String>> _robotInfo = [];
+  List<Map<String, dynamic>> _robotInfo = [];
 
   bool _isLoadingRobots = false;
   String _statusMessage = '';
@@ -48,7 +48,7 @@ class TriggerPageProvider with ChangeNotifier {
   String get missionType => _missionType;
   String get deviceType => _deviceType;
   List<String> get robotList => [notSpecified, ..._robotList];
-  List<Map<String, String>> get robotInfo => _robotInfo;
+  List<Map<String, dynamic>> get robotInfo => _robotInfo;
   bool get isLoadingRobots => _isLoadingRobots;
   String get statusMessage => _statusMessage;
 
@@ -118,8 +118,8 @@ class TriggerPageProvider with ChangeNotifier {
 
     try {
       final robots = await ApiService.fetchRobots(_selectedField!.fieldId);
-      _robotList = robots.map((r) => r['sn']!).where((sn) => sn.isNotEmpty).toList();
-      _robotInfo = robots;
+      _robotList = robots.map((r) => r['sn'].toString()).where((sn) => sn.isNotEmpty).toList();
+      _robotInfo = robots; // This should now be List<Map<String, dynamic>>
       // Always default to "Not Specified" after fetching, letting the user choose.
       _selectedRobot = notSpecified;
       _statusMessage = "機器人列表已更新。";
