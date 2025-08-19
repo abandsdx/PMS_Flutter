@@ -110,11 +110,10 @@ class _MapViewerPageState extends State<MapViewerPage> {
           final mapX = (_dynamicMapOrigin[0] - wy) / _resolution;
           final mapY = (_dynamicMapOrigin[1] - wx) / _resolution;
 
-          // **FINAL FIX**: Apply both X and Y flip.
-          final flippedX = loadedImage.width - mapX;
+          // Apply Y-axis flip for Flutter's coordinate system.
           final flippedY = loadedImage.height - mapY;
 
-          pointsToDisplay.add(_LabelPoint(label: rLocationName, offset: Offset(flippedX, flippedY)));
+          pointsToDisplay.add(_LabelPoint(label: rLocationName, offset: Offset(mapX, flippedY)));
         }
       }
 
@@ -140,12 +139,11 @@ class _MapViewerPageState extends State<MapViewerPage> {
       final pixelX = (_dynamicMapOrigin[0] - robotY_m) / _resolution;
       final pixelY = (_dynamicMapOrigin[1] - robotX_m) / _resolution;
 
-      // **FINAL FIX**: Apply both X and Y flip.
-      final flippedX = _mapImage!.width - pixelX;
+      // Apply Y-axis flip for Flutter's coordinate system.
       final flippedY = _mapImage!.height - pixelY;
 
       setState(() {
-        _trailPoints.add(Offset(flippedX, flippedY));
+        _trailPoints.add(Offset(pixelX, flippedY));
       });
     });
     _mqttService.connectAndListen(widget.robotUuid);
@@ -205,7 +203,7 @@ class MapAndRobotPainter extends CustomPainter {
     final canvasDestRect = Rect.fromLTWH(0, 0, size.width, size.height);
     canvas.drawImageRect(mapImage, mapSourceRect, canvasDestRect, paint);
 
-    // Scaling is now dynamic based on the actual image size, per user clarification.
+    // Scaling is dynamic based on the actual image size.
     final scaleX = size.width / mapImage.width;
     final scaleY = size.height / mapImage.height;
 
