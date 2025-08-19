@@ -33,7 +33,6 @@ class _MapViewerPageState extends State<MapViewerPage> {
   final MqttService _mqttService = MqttService();
   final double _resolution = 0.05;
   final String _mapBaseUrl = 'http://64.110.100.118:8001';
-  static const double _logicalMapSize = 712.0;
 
   List<double> _dynamicMapOrigin = [];
   ui.Image? _mapImage;
@@ -110,9 +109,12 @@ class _MapViewerPageState extends State<MapViewerPage> {
 
           final mapX = (_dynamicMapOrigin[0] - wy) / _resolution;
           final mapY = (_dynamicMapOrigin[1] - wx) / _resolution;
-          final flippedY = _logicalMapSize - mapY;
 
-          pointsToDisplay.add(_LabelPoint(label: rLocationName, offset: Offset(mapX, flippedY)));
+          // **FINAL FIX**: Apply both X and Y flip.
+          final flippedX = loadedImage.width - mapX;
+          final flippedY = loadedImage.height - mapY;
+
+          pointsToDisplay.add(_LabelPoint(label: rLocationName, offset: Offset(flippedX, flippedY)));
         }
       }
 
@@ -137,10 +139,13 @@ class _MapViewerPageState extends State<MapViewerPage> {
 
       final pixelX = (_dynamicMapOrigin[0] - robotY_m) / _resolution;
       final pixelY = (_dynamicMapOrigin[1] - robotX_m) / _resolution;
-      final flippedY = _logicalMapSize - pixelY;
+
+      // **FINAL FIX**: Apply both X and Y flip.
+      final flippedX = _mapImage!.width - pixelX;
+      final flippedY = _mapImage!.height - pixelY;
 
       setState(() {
-        _trailPoints.add(Offset(pixelX, flippedY));
+        _trailPoints.add(Offset(flippedX, flippedY));
       });
     });
     _mqttService.connectAndListen(widget.robotUuid);
@@ -200,9 +205,9 @@ class MapAndRobotPainter extends CustomPainter {
     final canvasDestRect = Rect.fromLTWH(0, 0, size.width, size.height);
     canvas.drawImageRect(mapImage, mapSourceRect, canvasDestRect, paint);
 
-    const logicalMapSize = 712.0;
-    final scaleX = size.width / logicalMapSize;
-    final scaleY = size.height / logicalMapSize;
+    // Scaling is now dynamic based on the actual image size, per user clarification.
+    final scaleX = size.width / mapImage.width;
+    final scaleY = size.height / mapImage.height;
 
     for (final point in fixedPoints) {
       final scaledPosition = Offset(point.offset.dx * scaleX, point.offset.dy * scaleY);
