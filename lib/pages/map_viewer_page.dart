@@ -110,10 +110,24 @@ class _MapViewerPageState extends State<MapViewerPage> {
           final mapX = (_dynamicMapOrigin[0] - wy) / _resolution;
           final mapY = (_dynamicMapOrigin[1] - wx) / _resolution;
 
-          // Apply Y-axis flip for Flutter's coordinate system.
-          final flippedY = loadedImage.height - mapY;
+          // --- CHOOSE ONE OF THE FOLLOWING FLIP OPTIONS ---
+          // Option A: No flips
+          // final finalX = mapX;
+          // final finalY = mapY;
 
-          pointsToDisplay.add(_LabelPoint(label: rLocationName, offset: Offset(mapX, flippedY)));
+          // Option B: Y-Flip only (Most likely correct)
+          final finalX = mapX;
+          final finalY = loadedImage.height - mapY;
+
+          // Option C: X-Flip only
+          // final finalX = loadedImage.width - mapX;
+          // final finalY = mapY;
+
+          // Option D: X and Y Flips
+          // final finalX = loadedImage.width - mapX;
+          // final finalY = loadedImage.height - mapY;
+
+          pointsToDisplay.add(_LabelPoint(label: rLocationName, offset: Offset(finalX, finalY)));
         }
       }
 
@@ -136,14 +150,28 @@ class _MapViewerPageState extends State<MapViewerPage> {
       final robotX_m = point.x / 1000.0;
       final robotY_m = point.y / 1000.0;
 
-      final pixelX = (_dynamicMapOrigin[0] - robotY_m) / _resolution;
-      final pixelY = (_dynamicMapOrigin[1] - robotX_m) / _resolution;
+      final mapX = (_dynamicMapOrigin[0] - robotY_m) / _resolution;
+      final mapY = (_dynamicMapOrigin[1] - robotX_m) / _resolution;
 
-      // Apply Y-axis flip for Flutter's coordinate system.
-      final flippedY = _mapImage!.height - pixelY;
+      // --- CHOOSE ONE OF THE FOLLOWING FLIP OPTIONS ---
+      // Option A: No flips
+      // final finalX = mapX;
+      // final finalY = mapY;
+
+      // Option B: Y-Flip only (Most likely correct)
+      final finalX = mapX;
+      final finalY = _mapImage!.height - mapY;
+
+      // Option C: X-Flip only
+      // final finalX = _mapImage!.width - mapX;
+      // final finalY = mapY;
+
+      // Option D: X and Y Flips
+      // final finalX = _mapImage!.width - mapX;
+      // final finalY = _mapImage!.height - mapY;
 
       setState(() {
-        _trailPoints.add(Offset(pixelX, flippedY));
+        _trailPoints.add(Offset(finalX, finalY));
       });
     });
     _mqttService.connectAndListen(widget.robotUuid);
@@ -203,7 +231,6 @@ class MapAndRobotPainter extends CustomPainter {
     final canvasDestRect = Rect.fromLTWH(0, 0, size.width, size.height);
     canvas.drawImageRect(mapImage, mapSourceRect, canvasDestRect, paint);
 
-    // Scaling is dynamic based on the actual image size.
     final scaleX = size.width / mapImage.width;
     final scaleY = size.height / mapImage.height;
 
