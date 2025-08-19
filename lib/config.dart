@@ -109,7 +109,7 @@ class Config {
 
       if (refreshResponse.statusCode == 200) {
         // A 3-second delay seems to be required by the backend.
-        await Future.delayed(const Duration(seconds: 3));
+        // await Future.delayed(const Duration(seconds: 3)); // REMOVED to improve performance
 
         final mapUrl = Uri.parse("http://64.110.100.118:8001/field-map");
         final mapResponse = await http.get(mapUrl, headers: headers);
