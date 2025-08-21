@@ -104,8 +104,13 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                   DropdownButtonFormField<String>(
                     value: provider.selectedRobot,
                     items: provider.robotList.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
-                    onChanged: provider.selectRobot,
-                    decoration: const InputDecoration(labelText: "機器人序號"),
+                    // Disable dropdown if no field is selected
+                    onChanged: provider.selectedField == null ? null : provider.selectRobot,
+                    decoration: InputDecoration(
+                      labelText: "機器人序號",
+                      filled: provider.selectedField == null,
+                      fillColor: Colors.grey.shade200,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   DropdownButtonFormField<String>(
