@@ -8,10 +8,18 @@ import 'pages/settings_page.dart';
 import 'widgets/api_key_dialog.dart';
 import 'providers/theme_provider.dart';
 
-void main() async {
+// A future that completes when all initial data is loaded.
+// (一個 future，在所有初始資料載入完成後完成。)
+late Future<void> _initialization;
+
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await Config.loadToken(); // Load token from storage
-  await Config.loadTheme(); // Load theme from storage
+  // Chain all loading operations together.
+  // (將所有載入操作連結在一起。)
+  _initialization = Config.loadToken()
+      .then((_) => Config.loadTheme())
+      .then((_) => Config.fetchFields());
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeProvider(Config.theme),
@@ -30,14 +38,84 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'PMS External Service',
           theme: themeProvider.themeData,
-          home: PMSHome(),
+          // Use a FutureBuilder to handle the async initialization.
+          // (使用 FutureBuilder 來處理非同步初始化。)
+          home: FutureBuilder(
+            future: _initialization,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.done) {
+                // If the future is complete, check if we need the API key, then show the main app.
+                // (如果 future 已完成，檢查是否需要 API 金鑰，然後顯示主應用程式。)
+                return const PMSHomeWrapper();
+              }
+              // While waiting, show a loading spinner.
+              // (等待時，顯示一個載入中的轉圈圖示。)
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            },
+          ),
         );
       },
     );
   }
 }
 
+/// A wrapper for PMSHome to handle the initial API key dialog logic.
+/// (PMSHome 的一個包裝器，用於處理初始 API 金鑰對話框的邏輯。)
+class PMSHomeWrapper extends StatefulWidget {
+  const PMSHomeWrapper({Key? key}) : super(key: key);
+
+  @override
+  _PMSHomeWrapperState createState() => _PMSHomeWrapperState();
+}
+
+class _PMSHomeWrapperState extends State<PMSHomeWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    // This logic now runs after all initial data is loaded.
+    // (這段邏輯現在會在所有初始資料載入完成後執行。)
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (Config.prodToken.isEmpty) {
+        final result = await showDialog<String>(
+          context: context,
+          builder: (_) => const ApiKeyDialog(),
+        );
+
+        if (result == null || result.trim().isEmpty) {
+          // No action needed, user can't proceed without a key.
+          // Maybe show a message. For now, they are stuck on a blank page.
+        } else {
+          await Config.saveToken(result.trim());
+          // Re-fetch fields with the new key and rebuild the UI.
+          // (用新的金鑰重新獲取場域資料並重建 UI。)
+          setState(() {});
+        }
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // If we have a token, show the main UI. Otherwise, show a message or loading.
+    // (如果我們有 token，就顯示主 UI。否則，顯示訊息或載入中。)
+    if (Config.prodToken.isNotEmpty) {
+      return const PMSHome();
+    } else {
+      return const Scaffold(
+        body: Center(
+          child: Text("Please provide an API Key."),
+        ),
+      );
+    }
+  }
+}
+
+
 class PMSHome extends StatefulWidget {
+  const PMSHome({Key? key}) : super(key: key);
+
   @override
   _PMSHomeState createState() => _PMSHomeState();
 }
@@ -45,7 +123,7 @@ class PMSHome extends StatefulWidget {
 class _PMSHomeState extends State<PMSHome> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final tabs = [
+  final List<Tab> tabs = const [
     Tab(text: "觸發新任務"),
     Tab(text: "查詢任務狀態"),
     Tab(text: "密碼重設"),
@@ -53,47 +131,33 @@ class _PMSHomeState extends State<PMSHome> with SingleTickerProviderStateMixin {
   ];
 
   @override
-void initState() {
-  super.initState();
-  _tabController = TabController(length: tabs.length, vsync: this);
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: tabs.length, vsync: this);
+    // REMOVED all the complex logic from here.
+    // (移除了這裡所有複雜的邏輯。)
+  }
 
-  WidgetsBinding.instance.addPostFrameCallback((_) async {
-    if (Config.prodToken.isEmpty) {
-      final result = await showDialog<String>(
-        context: context,
-        builder: (_) => ApiKeyDialog(),
-      );
-
-      if (result == null || result.trim().isEmpty) {
-        Navigator.of(context).pop(); // 沒輸入金鑰就退出
-      } else {
-        Config.prodToken = result;
-        await Config.saveToken(Config.prodToken);
-        await Config.fetchFields();  // 新增：輸入新金鑰後抓資料
-        setState(() {});
-      }
-    } else {
-      // 新增區塊： app 啟動且有 token，主動抓場域資料
-      await Config.fetchFields();
-      setState(() {});
-    }
-  });
-}
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("PMS External Service"),
+        title: const Text("PMS External Service"),
         bottom: TabBar(controller: _tabController, tabs: tabs),
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
+        children: const [
           TriggerPage(),
           QueryPage(),
           ResetPage(),
-          const SettingsPage(),
+          SettingsPage(),
         ],
       ),
     );
