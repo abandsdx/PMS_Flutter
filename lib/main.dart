@@ -112,11 +112,11 @@ class _PMSHomeState extends State<PMSHome> with SingleTickerProviderStateMixin {
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          TriggerPage(),
-          QueryPage(),
+        children: [
+          const TriggerPage(),
+          const QueryPage(),
           ResetPage(),
-          SettingsPage(),
+          const SettingsPage(),
         ],
       ),
     );
