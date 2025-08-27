@@ -208,24 +208,36 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                                   DataColumn(label: Text("層數")),
                                 ],
                                 rows: provider.robotInfo.map((r) {
+                                  // --- Robust Data Parsing ---
+                                  final connStatusValue = r['connStatus'];
+                                  final connStatusText = (connStatusValue == 1 || connStatusValue == '1') ? '在線' : '離線';
+
+                                  final supportMcsValue = r['supportMCS'];
+                                  final supportMcsText = (supportMcsValue == true) ? '是支援' : '不支援';
+
+                                  final isChargingValue = r['batteryCharging'];
+                                  final isChargingText = (isChargingValue == true) ? '是' : '否';
+
                                   String maxPlatform = 'N/A';
                                   if (r['middleLayer'] is Map) {
                                     final middleLayer = r['middleLayer'] as Map<String, dynamic>;
                                     if (middleLayer['data'] is Map) {
                                       final data = middleLayer['data'] as Map<String, dynamic>;
-                                      if (data.containsKey('maxPlatform')) {
-                                        maxPlatform = data['maxPlatform']?.toString() ?? 'N/A';
+                                      final platformValue = data['maxPlatform'];
+                                      if (platformValue != null && platformValue.toString().isNotEmpty) {
+                                        maxPlatform = platformValue.toString();
                                       }
                                     }
                                   }
+
                                   return DataRow(cells: [
                                     DataCell(Text(r['sn']?.toString() ?? '')),
                                     DataCell(Text(r['imageVersion']?.toString() ?? '')),
-                                    DataCell(Text((r['batteryCharging']?.toString() ?? 'false') == 'true' ? '是' : '否')),
+                                    DataCell(Text(isChargingText)),
                                     DataCell(Text(r['battery']?.toString() ?? '')),
-                                    DataCell(Text((r['connStatus']?.toString() ?? '0') == '1' ? '在線' : '離線')),
+                                    DataCell(Text(connStatusText)),
                                     DataCell(Text(r['chassisUuid']?.toString() ?? '')),
-                                    DataCell(Text((r['supportMCS']?.toString() ?? 'false') == 'true' ? '是支援' : '不支援')),
+                                    DataCell(Text(supportMcsText)),
                                     DataCell(Text(r['deliveriorStatus']?.toString() ?? '')),
                                     DataCell(Text(maxPlatform)),
                                   ]);
