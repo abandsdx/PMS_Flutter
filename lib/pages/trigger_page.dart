@@ -185,6 +185,32 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text("機器人狀態", style: Theme.of(context).textTheme.titleMedium),
+                // --- TEMPORARY DEBUG UI ---
+                if (provider.robotInfo.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade100,
+                      border: Border.all(color: Colors.amber.shade600),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "--- 除錯資訊：第一筆機器人資料的原始來源 ---",
+                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+                        ),
+                        const SizedBox(height: 4),
+                        SelectableText(
+                          JsonEncoder.withIndent('  ').convert(provider.robotInfo.first),
+                          style: const TextStyle(fontFamily: 'monospace', fontSize: 10, color: Colors.black),
+                        ),
+                      ],
+                    ),
+                  ),
+                // --- END TEMPORARY DEBUG UI ---
                 SizedBox(
                   height: 200,
                   child: Container(
@@ -208,21 +234,30 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                                   DataColumn(label: Text("層數")),
                                 ],
                                 rows: provider.robotInfo.map((r) {
-                                  // --- Robust Data Parsing ---
-                                  final connStatusValue = r['connStatus'];
-                                  final connStatusText = (connStatusValue == 1 || connStatusValue == '1') ? '在線' : '離線';
+                                  // --- Defensive Data Parsing ---
+                                  // Default to the "false" state and only switch to the "true" state if the condition is explicitly met.
+                                  // Use .toString() to handle various data types (int, bool, String) gracefully.
 
-                                  final supportMcsValue = r['supportMCS'];
-                                  final supportMcsText = (supportMcsValue == true) ? '是支援' : '不支援';
+                                  String connStatusText = '離線';
+                                  if (r['connStatus']?.toString() == '1') {
+                                    connStatusText = '在線';
+                                  }
 
-                                  final isChargingValue = r['batteryCharging'];
-                                  final isChargingText = (isChargingValue == true) ? '是' : '否';
+                                  String supportMcsText = '不支援';
+                                  if (r['supportMCS']?.toString() == 'true') {
+                                    supportMcsText = '是支援';
+                                  }
+
+                                  String isChargingText = '否';
+                                  if (r['batteryCharging']?.toString() == 'true') {
+                                    isChargingText = '是';
+                                  }
 
                                   String maxPlatform = 'N/A';
-                                  if (r['middleLayer'] is Map) {
-                                    final middleLayer = r['middleLayer'] as Map<String, dynamic>;
-                                    if (middleLayer['data'] is Map) {
-                                      final data = middleLayer['data'] as Map<String, dynamic>;
+                                  final middleLayer = r['middleLayer'];
+                                  if (middleLayer is Map) {
+                                    final data = middleLayer['data'];
+                                    if (data is Map) {
                                       final platformValue = data['maxPlatform'];
                                       if (platformValue != null && platformValue.toString().isNotEmpty) {
                                         maxPlatform = platformValue.toString();
