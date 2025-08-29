@@ -186,32 +186,6 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text("機器人狀態", style: Theme.of(context).textTheme.titleMedium),
-                // --- TEMPORARY DEBUG UI ---
-                if (provider.robotInfo.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade100,
-                      border: Border.all(color: Colors.amber.shade600),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "--- 除錯資訊：第一筆機器人資料的原始來源 ---",
-                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
-                        ),
-                        const SizedBox(height: 4),
-                        SelectableText(
-                          JsonEncoder.withIndent('  ').convert(provider.robotInfo.first),
-                          style: const TextStyle(fontFamily: 'monospace', fontSize: 10, color: Colors.black),
-                        ),
-                      ],
-                    ),
-                  ),
-                // --- END TEMPORARY DEBUG UI ---
                 SizedBox(
                   height: 200,
                   child: Container(
@@ -235,29 +209,34 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                                   DataColumn(label: Text("層數")),
                                 ],
                                 rows: provider.robotInfo.map((r) {
-                                  // --- Defensive Data Parsing ---
-                                  // Default to the "false" state and only switch to the "true" state if the condition is explicitly met.
-                                  // Use .toString() to handle various data types (int, bool, String) gracefully.
+                                  // --- Final, Compatible Data Parsing ---
+                                  // Handles two different data structures from the API (detailed for online robots, simple for offline robots).
 
-                                  String connStatusText = '離線';
-                                  if (r['connStatus']?.toString() == '1') {
-                                    connStatusText = '在線';
+                                  // Connection Status: Check for 'connStatus' (detailed) first, then fall back to 'status' (simple).
+                                  String connStatusText;
+                                  if (r.containsKey('connStatus')) {
+                                    connStatusText = (r['connStatus']?.toString() == '1') ? '在線' : '離線';
+                                  } else {
+                                    connStatusText = r['status']?.toString() ?? '未知';
                                   }
 
-                                  String supportMcsText = '不支援';
-                                  if (r['supportMCS']?.toString() == 'true') {
-                                    supportMcsText = '是支援';
+                                  // Charging Status: Check for 'batteryCharging' (detailed) first, then fall back to 'charging' (simple).
+                                  String isChargingText;
+                                  if (r.containsKey('batteryCharging')) {
+                                    isChargingText = (r['batteryCharging']?.toString() == 'true') ? '是' : '否';
+                                  } else {
+                                    isChargingText = r['charging']?.toString() ?? '未知';
                                   }
 
-                                  String isChargingText = '否';
-                                  if (r['batteryCharging']?.toString() == 'true') {
-                                    isChargingText = '是';
-                                  }
+                                  // Support MCS: Only exists in the detailed view. Default to 'N/A' if not present.
+                                  final supportMcsText = r.containsKey('supportMCS')
+                                      ? ((r['supportMCS']?.toString() == 'true') ? '是支援' : '不支援')
+                                      : 'N/A';
 
+                                  // Number of Layers: Only exists in the detailed view.
                                   String maxPlatform = 'N/A';
-                                  final middleLayer = r['middleLayer'];
-                                  if (middleLayer is Map) {
-                                    final data = middleLayer['data'];
+                                  if (r.containsKey('middleLayer') && r['middleLayer'] is Map) {
+                                    final data = r['middleLayer']['data'];
                                     if (data is Map) {
                                       final platformValue = data['maxPlatform'];
                                       if (platformValue != null && platformValue.toString().isNotEmpty) {
@@ -267,14 +246,14 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                                   }
 
                                   return DataRow(cells: [
-                                    DataCell(Text(r['sn']?.toString() ?? '')),
-                                    DataCell(Text(r['imageVersion']?.toString() ?? '')),
+                                    DataCell(Text(r['sn']?.toString() ?? 'N/A')),
+                                    DataCell(Text(r['imageVersion']?.toString() ?? 'N/A')),
                                     DataCell(Text(isChargingText)),
-                                    DataCell(Text(r['battery']?.toString() ?? '')),
+                                    DataCell(Text(r['battery']?.toString() ?? 'N/A')),
                                     DataCell(Text(connStatusText)),
-                                    DataCell(Text(r['chassisUuid']?.toString() ?? '')),
+                                    DataCell(Text(r['chassisUuid']?.toString() ?? 'N/A')),
                                     DataCell(Text(supportMcsText)),
-                                    DataCell(Text(r['deliveriorStatus']?.toString() ?? '')),
+                                    DataCell(Text(r['deliveriorStatus']?.toString() ?? 'N/A')),
                                     DataCell(Text(maxPlatform)),
                                   ]);
                                 }).toList(),
