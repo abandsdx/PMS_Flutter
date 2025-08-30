@@ -186,6 +186,40 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text("機器人狀態", style: Theme.of(context).textTheme.titleMedium),
+                // --- TEMPORARY DEBUG UI (IMPROVED) ---
+                if (provider.robotInfo.isNotEmpty)
+                  Container(
+                    height: 150, // Give it a fixed height to be scrollable
+                    padding: const EdgeInsets.all(8),
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade100,
+                      border: Border.all(color: Colors.amber.shade600),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "--- 除錯資訊：所有機器人資料的原始來源 ---",
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+                          ),
+                          const SizedBox(height: 4),
+                          ...provider.robotInfo.map((robotData) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8.0),
+                              child: SelectableText(
+                                JsonEncoder.withIndent('  ').convert(robotData),
+                                style: const TextStyle(fontFamily: 'monospace', fontSize: 10, color: Colors.black),
+                              ),
+                            );
+                          }).toList(),
+                        ],
+                      ),
+                    ),
+                  ),
+                // --- END TEMPORARY DEBUG UI ---
                 SizedBox(
                   height: 200,
                   child: Container(
