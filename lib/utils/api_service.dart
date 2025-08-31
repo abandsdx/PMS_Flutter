@@ -14,27 +14,16 @@ class ApiService {
       };
 
   /// Fetches the list of robots for a given fieldId.
-  static Future<List<Map<String, String>>> fetchRobots(String fieldId) async {
+  /// Returns the raw payload from the API.
+  static Future<List<Map<String, dynamic>>> fetchRobots(String fieldId) async {
     final url = Uri.parse("${Config.baseUrl}/rms/mission/robots?fieldId=$fieldId");
     final response = await http.get(url, headers: _headers);
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       final payload = (data['data']['payload'] ?? []) as List;
-
-      return payload.map<Map<String, String>>((r) {
-        final online = r['connStatus'] == 1;
-        return {
-          "sn": r['sn']?.toString() ?? '',
-          "battery": online ? r['battery']?.toString() ?? "未知" : "未知",
-          "charging": online ? ((r['batteryCharging'] == true) ? "是" : "否") : "未知",
-          "status": online ? "在線" : "離線",
-          "chassisUuid": r['chassisUuid']?.toString() ?? '',
-          "chassisVersion": r['chassisVersion']?.toString() ?? '',
-          "deliveriorStatus": online ? r['deliveriorStatus']?.toString() ?? "未知" : "未知",
-          "imageVersion": r['imageVersion']?.toString() ?? '',
-        };
-      }).toList();
+      // Return the raw payload directly. The UI will handle parsing.
+      return List<Map<String, dynamic>>.from(payload);
     } else {
       throw Exception('Failed to load robots: ${response.statusCode}');
     }

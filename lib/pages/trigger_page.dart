@@ -204,19 +204,37 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                                   DataColumn(label: Text("電量")),
                                   DataColumn(label: Text("連線狀態")),
                                   DataColumn(label: Text("底盤ID")),
+                                  DataColumn(label: Text("支援MCS")),
                                   DataColumn(label: Text("遞送狀態")),
+                                  DataColumn(label: Text("層數")),
                                 ],
                                 rows: provider.robotInfo.map((r) {
-                                  // The data is pre-formatted by the ApiService.
-                                  // The UI should just display the strings directly.
+                                  // This is the final, correct parsing logic for the raw API data.
+                                  final isOnline = r['connStatus'] == 1;
+                                  final supportMcsText = (r['supportMCS'] == true) ? '是支援' : '不支援';
+                                  final isChargingText = (r['batteryCharging'] == true) ? '是' : '否';
+
+                                  String maxPlatform = 'N/A';
+                                  if (r['middleLayer'] is Map) {
+                                      final data = r['middleLayer']['data'];
+                                      if (data is Map) {
+                                          final platformValue = data['maxPlatform'];
+                                          if (platformValue != null && platformValue.toString().isNotEmpty) {
+                                              maxPlatform = platformValue.toString();
+                                          }
+                                      }
+                                  }
+
                                   return DataRow(cells: [
-                                    DataCell(Text(r['sn'] ?? 'N/A')),
-                                    DataCell(Text(r['imageVersion'] ?? 'N/A')),
-                                    DataCell(Text(r['charging'] ?? 'N/A')),
-                                    DataCell(Text(r['battery'] ?? 'N/A')),
-                                    DataCell(Text(r['status'] ?? 'N/A')),
-                                    DataCell(Text(r['chassisUuid'] ?? 'N/A')),
-                                    DataCell(Text(r['deliveriorStatus'] ?? 'N/A')),
+                                    DataCell(Text(r['sn']?.toString() ?? 'N/A')),
+                                    DataCell(Text(r['imageVersion']?.toString() ?? 'N/A')),
+                                    DataCell(Text(isChargingText)),
+                                    DataCell(Text(r['battery']?.toString() ?? 'N/A')),
+                                    DataCell(Text(isOnline ? '在線' : '離線')),
+                                    DataCell(Text(r['chassisUuid']?.toString() ?? 'N/A')),
+                                    DataCell(Text(supportMcsText)),
+                                    DataCell(Text(r['deliveriorStatus']?.toString() ?? 'N/A')),
+                                    DataCell(Text(maxPlatform)),
                                   ]);
                                 }).toList(),
                               ),
