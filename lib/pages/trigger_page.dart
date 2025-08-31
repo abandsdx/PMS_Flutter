@@ -211,7 +211,7 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                                 rows: provider.robotInfo.map((r) {
                                   // This is the final, correct parsing logic for the raw API data.
                                   final isOnline = r['connStatus'] == 1;
-                                  final supportMcsText = (r['supportMCS'] == true) ? '是支援' : '不支援';
+                                  final supportMcsText = (r['supportMCS'] == true) ? '支援' : '不支援';
                                   final isChargingText = (r['batteryCharging'] == true) ? '是' : '否';
 
                                   String maxPlatform = 'N/A';
