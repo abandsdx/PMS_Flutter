@@ -190,7 +190,7 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                   height: 200,
                   child: Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(border: Border.all(color: Theme.of(context).dividerColor), borderRadius: BorderRadius.circular(8)),
                     child: provider.robotInfo.isEmpty
                         ? const Center(child: Text("無資料"))
                         : SingleChildScrollView(
@@ -225,16 +225,17 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                                       }
                                   }
 
+                                  final cellTextStyle = Theme.of(context).textTheme.bodyMedium;
                                   return DataRow(cells: [
-                                    DataCell(Text(r['sn']?.toString() ?? 'N/A')),
-                                    DataCell(Text(r['imageVersion']?.toString() ?? 'N/A')),
-                                    DataCell(Text(isChargingText)),
-                                    DataCell(Text(r['battery']?.toString() ?? 'N/A')),
-                                    DataCell(Text(isOnline ? '在線' : '離線')),
-                                    DataCell(Text(r['chassisUuid']?.toString() ?? 'N/A')),
-                                    DataCell(Text(supportMcsText)),
-                                    DataCell(Text(r['deliveriorStatus']?.toString() ?? 'N/A')),
-                                    DataCell(Text(maxPlatform)),
+                                    DataCell(Text(r['sn']?.toString() ?? 'N/A', style: cellTextStyle)),
+                                    DataCell(Text(r['imageVersion']?.toString() ?? 'N/A', style: cellTextStyle)),
+                                    DataCell(Text(isChargingText, style: cellTextStyle)),
+                                    DataCell(Text(r['battery']?.toString() ?? 'N/A', style: cellTextStyle)),
+                                    DataCell(Text(isOnline ? '在線' : '離線', style: cellTextStyle)),
+                                    DataCell(Text(r['chassisUuid']?.toString() ?? 'N/A', style: cellTextStyle)),
+                                    DataCell(Text(supportMcsText, style: cellTextStyle)),
+                                    DataCell(Text(r['deliveriorStatus']?.toString() ?? 'N/A', style: cellTextStyle)),
+                                    DataCell(Text(maxPlatform, style: cellTextStyle)),
                                   ]);
                                 }).toList(),
                               ),
@@ -255,7 +256,7 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                 Text("近期任務", style: Theme.of(context).textTheme.titleMedium),
                 Expanded(
                   child: Container(
-                     decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+                     decoration: BoxDecoration(border: Border.all(color: Theme.of(context).dividerColor), borderRadius: BorderRadius.circular(8)),
                      child: provider.recentMissions.isEmpty
                       ? const Center(child: Text("無近期任務"))
                       : ListView.builder(
