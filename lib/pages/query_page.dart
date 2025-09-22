@@ -177,7 +177,7 @@ class _QueryPageState extends State<QueryPage> {
           Expanded(
             child: Container(
               padding: const EdgeInsets.all(8),
-              color: Colors.grey[100],
+              color: Theme.of(context).colorScheme.surfaceVariant,
               child: SingleChildScrollView(
                 child: SelectableText(
                   outputText,
