@@ -101,7 +101,6 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
   Widget build(BuildContext context) {
     super.build(context);
     final provider = context.watch<TriggerPageProvider>();
-    final theme = Theme.of(context);
 
     // The main layout is a Row with two panels.
     // (主佈局是一個包含兩個面板的 Row。)
@@ -118,7 +117,7 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("觸發新任務", style: theme.textTheme.titleLarge),
+                  Text("觸發新任務", style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<Field>(
                     value: provider.selectedField,
@@ -172,7 +171,7 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                     Center(
                       child: Text(
                         provider.statusMessage,
-                        style: theme.textTheme.bodySmall,
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ),
                 ],
@@ -186,12 +185,12 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text("機器人狀態", style: theme.textTheme.titleMedium),
+                Text("機器人狀態", style: Theme.of(context).textTheme.titleMedium),
                 SizedBox(
                   height: 200,
                   child: Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(border: Border.all(color: theme.dividerColor), borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(border: Border.all(color: Theme.of(context).dividerColor), borderRadius: BorderRadius.circular(8)),
                     child: provider.robotInfo.isEmpty
                         ? const Center(child: Text("無資料"))
                         : SingleChildScrollView(
@@ -226,7 +225,7 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                                       }
                                   }
 
-                                  final cellTextStyle = theme.textTheme.bodyMedium;
+                                  final cellTextStyle = Theme.of(context).textTheme.bodyMedium;
                                   return DataRow(cells: [
                                     DataCell(Text(r['sn']?.toString() ?? 'N/A', style: cellTextStyle)),
                                     DataCell(Text(r['imageVersion']?.toString() ?? 'N/A', style: cellTextStyle)),
@@ -254,33 +253,22 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text("近期任務", style: theme.textTheme.titleMedium),
+                Text("近期任務", style: Theme.of(context).textTheme.titleMedium),
                 Expanded(
                   child: Container(
-                     decoration: BoxDecoration(border: Border.all(color: theme.dividerColor), borderRadius: BorderRadius.circular(8)),
+                     decoration: BoxDecoration(border: Border.all(color: Theme.of(context).dividerColor), borderRadius: BorderRadius.circular(8)),
                      child: provider.recentMissions.isEmpty
-                      ? const Center(child: Text("無資料"))
+                      ? const Center(child: Text("無近期任務"))
                       : ListView.builder(
                           itemCount: provider.recentMissions.length,
                           itemBuilder: (context, index) {
                             final mission = provider.recentMissions[index];
                             return Card(
-                              color: theme.cardColor,
                               margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: theme.colorScheme.primary,
-                                  foregroundColor: theme.colorScheme.onPrimary,
-                                  child: Text('${index + 1}')
-                                ),
-                                title: Text(
-                                  '機器人 #${mission['sn']}',
-                                  style: theme.textTheme.titleSmall,
-                                ),
-                                subtitle: Text(
-                                  '目標: ${mission['destination']}',
-                                  style: theme.textTheme.bodySmall,
-                                ),
+                                leading: CircleAvatar(child: Text('${index + 1}')),
+                                title: Text('機器人 #${mission['sn']}'),
+                                subtitle: Text('目標: ${mission['destination']}'),
                                 trailing: ElevatedButton(
                                   child: const Text('查看地圖'),
                                   onPressed: () {
