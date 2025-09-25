@@ -199,9 +199,6 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     // Determine the main content: either a loading indicator or the interactive map.
     // (確定主要內容：載入指示器或互動式地圖。)
     Widget mapContent;
@@ -216,13 +213,6 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
             mapImage: _mapImage!,
             trailPoints: _trailPoints,
             fixedPoints: _fixedPointsPx,
-            trailColor: colorScheme.primary,
-            fixedPointColor: colorScheme.error,
-            robotColor: colorScheme.secondary,
-            robotHaloColor: colorScheme.secondary.withOpacity(0.5),
-            labelStyle: theme.textTheme.bodySmall!.copyWith(
-              backgroundColor: colorScheme.surface.withOpacity(0.7),
-            ),
           ),
         ),
       );
@@ -243,7 +233,7 @@ class _MapTrackingDialogState extends State<MapTrackingDialog> {
             Expanded(
               flex: 5,
               child: Container(
-                decoration: BoxDecoration(border: Border.all(color: Theme.of(context).dividerColor)),
+                decoration: BoxDecoration(border: Border.all(color: Colors.blueGrey)),
                 child: mapContent,
               ),
             ),
@@ -286,22 +276,11 @@ class MapAndRobotPainter extends CustomPainter {
   final ui.Image mapImage;
   final List<Offset> trailPoints;
   final List<_LabelPoint> fixedPoints;
-  final Color trailColor;
-  final Color fixedPointColor;
-  final Color robotColor;
-  final Color robotHaloColor;
-  final TextStyle labelStyle;
-
 
   MapAndRobotPainter({
     required this.mapImage,
     required this.trailPoints,
     required this.fixedPoints,
-    required this.trailColor,
-    required this.fixedPointColor,
-    required this.robotColor,
-    required this.robotHaloColor,
-    required this.labelStyle,
   });
 
   @override
@@ -316,13 +295,10 @@ class MapAndRobotPainter extends CustomPainter {
 
     for (final point in fixedPoints) {
       final scaledPosition = Offset(point.offset.dx * scaleX, point.offset.dy * scaleY);
-      final paintDot = Paint()..color = fixedPointColor;
+      final paintDot = Paint()..color = Colors.red;
       canvas.drawCircle(scaledPosition, 5, paintDot);
       final textPainter = TextPainter(
-        text: TextSpan(
-          text: point.label,
-          style: labelStyle.copyWith(color: fixedPointColor),
-        ),
+        text: TextSpan(text: point.label, style: const TextStyle(fontSize: 10, color: Colors.red, backgroundColor: Color(0x99FFFFFF))),
         textDirection: ui.TextDirection.ltr,
       );
       textPainter.layout();
@@ -336,13 +312,13 @@ class MapAndRobotPainter extends CustomPainter {
         for (int i = 1; i < trailPoints.length; i++) {
             path.lineTo(trailPoints[i].dx * scaleX, trailPoints[i].dy * scaleY);
         }
-        final trailPaint = Paint()..color = trailColor.withOpacity(0.8)..style = PaintingStyle.stroke..strokeWidth = 2.0;
+        final trailPaint = Paint()..color = Colors.blue.withOpacity(0.8)..style = PaintingStyle.stroke..strokeWidth = 2.0;
         canvas.drawPath(path, trailPaint);
 
         final currentPosition = Offset(trailPoints.last.dx * scaleX, trailPoints.last.dy * scaleY);
-        final paintDot = Paint()..style = PaintingStyle.fill..color = robotColor;
+        final paintDot = Paint()..style = PaintingStyle.fill..color = const Color(0xFF2E7D32);
         canvas.drawCircle(currentPosition, 6, paintDot);
-        final paintHalo = Paint()..style = PaintingStyle.stroke..strokeWidth = 2..color = robotHaloColor;
+        final paintHalo = Paint()..style = PaintingStyle.stroke..strokeWidth = 2..color = const Color(0x802E7D32);
         canvas.drawCircle(currentPosition, 10, paintHalo);
     }
   }
