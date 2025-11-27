@@ -2,7 +2,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config.dart';
-import '../models/field_data.dart';
 
 /// A service class for handling all API communications.
 class ApiService {

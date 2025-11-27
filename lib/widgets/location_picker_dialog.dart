@@ -56,7 +56,12 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> with Single
               TabBar(
                 controller: _tabController,
                 isScrollable: true,
-                tabs: widget.maps.map((map) => Tab(text: "${map.floor} (${map.mapName})")).toList(),
+                tabs: widget.maps.map((map) {
+                  // Use a compact label so all floors/maps stay visible.
+                  final shortName = map.mapName.split('_').isNotEmpty ? map.mapName.split('_').last : map.mapName;
+                  final label = shortName == map.floor ? map.floor : "${map.floor} ($shortName)";
+                  return Tab(text: label);
+                }).toList(),
               ),
             Expanded(
               child: widget.maps.isEmpty

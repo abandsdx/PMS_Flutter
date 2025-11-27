@@ -1,8 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../config.dart';
-import '../models/field_data.dart';
 import '../utils/trigger_storage.dart';
 
 class ResetPage extends StatefulWidget {
@@ -24,13 +23,15 @@ class _ResetPageState extends State<ResetPage> {
   Future<void> loadTriggerRecords() async {
     final loaded = await TriggerStorage.loadRecords();
     setState(() {
-      records = loaded.map((r) => {
-            'triggerId': r.triggerId,
-            'fieldId': r.fieldId,
-            'serialNumber': r.serialNumber,
-            'timestamp': r.timestamp,
-            'raw_payload': r.rawPayload,
-          }).toList();
+      records = loaded
+          .map((r) => {
+                'triggerId': r.triggerId,
+                'fieldId': r.fieldId,
+                'serialNumber': r.serialNumber,
+                'timestamp': r.timestamp,
+                'raw_payload': r.rawPayload,
+              })
+          .toList();
       selectedRecord = null;
       resultMessage = '';
     });
@@ -55,8 +56,6 @@ class _ResetPageState extends State<ResetPage> {
       "serialNumber": sn,
     });
 
-    print("🚀 Sending payload: $body");
-
     try {
       final response = await http.post(url, headers: headers, body: body);
 
@@ -64,7 +63,7 @@ class _ResetPageState extends State<ResetPage> {
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
-            title: const Text("✅ 重設成功"),
+            title: const Text("重設密碼"),
             content: Text(response.body),
             actions: [
               TextButton(
@@ -77,18 +76,20 @@ class _ResetPageState extends State<ResetPage> {
       } else {
         setState(() {
           resultMessage =
-              "[${DateTime.now()}] ❌ 重設失敗: ${response.statusCode}\n${response.body}";
+              "[${DateTime.now()}] 重設密碼失敗: ${response.statusCode}\n${response.body}";
         });
       }
     } catch (e) {
       setState(() {
-        resultMessage = "[${DateTime.now()}] ❌ 例外錯誤: $e";
+        resultMessage = "[${DateTime.now()}] 例外錯誤: $e";
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final surface = Theme.of(context).colorScheme.surface;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -123,7 +124,9 @@ class _ResetPageState extends State<ResetPage> {
                   }
                   final isSelected = selectedRecord == record;
                   return ListTile(
-                    tileColor: isSelected ? Colors.blue.shade100 : null,
+                    tileColor: isSelected
+                        ? Theme.of(context).colorScheme.primary.withOpacity(0.15)
+                        : null,
                     title: Text("[$fieldName] ${record['serialNumber']}"),
                     subtitle: Text("triggerId: ${record['triggerId']}"),
                     onTap: () {
@@ -145,16 +148,18 @@ class _ResetPageState extends State<ResetPage> {
                     padding: const EdgeInsets.all(10),
                     margin: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      border: Border.all(color: Colors.grey.shade400),
+                      color: surface,
+                      border: Border.all(color: onSurface.withOpacity(0.15)),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: SelectableText(
-                        JsonEncoder.withIndent('  ')
-                            .convert(selectedRecord!['raw_payload']),
-                        style: const TextStyle(fontFamily: 'Courier'),
+                        JsonEncoder.withIndent('  ').convert(selectedRecord!['raw_payload']),
+                        style: TextStyle(
+                          fontFamily: 'Courier',
+                          color: onSurface,
+                        ),
                       ),
                     ),
                   ),
@@ -168,10 +173,13 @@ class _ResetPageState extends State<ResetPage> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.yellow.shade100,
+                        color: Theme.of(context).colorScheme.secondary.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text(resultMessage),
+                      child: Text(
+                        resultMessage,
+                        style: TextStyle(color: onSurface),
+                      ),
                     ),
                 ],
               ],

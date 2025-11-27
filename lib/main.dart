@@ -61,11 +61,11 @@ class PMSHome extends StatefulWidget {
 class _PMSHomeState extends State<PMSHome> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final tabs = [
-    const Tab(text: "觸發新任務"),
-    const Tab(text: "查詢任務狀態"),
-    const Tab(text: "密碼重設"),
-    const Tab(text: "設定"),
+  final tabs = const [
+    Tab(text: "觸發任務"),
+    Tab(text: "查詢任務狀態"),
+    Tab(text: "密碼重設"),
+    Tab(text: "設定"),
   ];
 
   @override
@@ -108,7 +108,15 @@ class _PMSHomeState extends State<PMSHome> with SingleTickerProviderStateMixin {
     return Scaffold(
       appBar: AppBar(
         title: const Text("PMS External Service"),
-        bottom: TabBar(controller: _tabController, tabs: tabs),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: tabs,
+          indicatorSize: TabBarIndicatorSize.label,
+          indicatorWeight: 3,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+        ),
       ),
       body: TabBarView(
         controller: _tabController,

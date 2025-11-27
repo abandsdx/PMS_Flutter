@@ -110,6 +110,7 @@ class _QueryPageState extends State<QueryPage> {
               children: [
                 DropdownButtonFormField<Field>(
                   decoration: const InputDecoration(labelText: "選擇場域"),
+                  isExpanded: true,
                   value: selectedField,
                   items: Config.fields
                       .map((f) => DropdownMenuItem(value: f, child: Text(f.fieldName)))
@@ -128,6 +129,7 @@ class _QueryPageState extends State<QueryPage> {
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: "機器人序號"),
+                  isExpanded: true,
                   value: selectedRobot,
                   items: robotSerials
                       .map((sn) => DropdownMenuItem(value: sn, child: Text(sn)))
@@ -141,6 +143,7 @@ class _QueryPageState extends State<QueryPage> {
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: "狀態類型"),
+                  isExpanded: true,
                   value: selectedType,
                   items: const [
                     DropdownMenuItem(value: "arrival", child: Text("arrival")),
@@ -154,13 +157,14 @@ class _QueryPageState extends State<QueryPage> {
                   },
                 ),
                 const SizedBox(height: 24),
-                Row(
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
                     ElevatedButton(
                       onPressed: query,
                       child: const Text("查詢"),
                     ),
-                    const SizedBox(width: 12),
                     OutlinedButton(
                       onPressed: clearOutput,
                       child: const Text("清空"),
@@ -176,12 +180,18 @@ class _QueryPageState extends State<QueryPage> {
           // 右側文字輸出區
           Expanded(
             child: Container(
-              padding: const EdgeInsets.all(8),
-              color: Colors.grey[100],
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: SingleChildScrollView(
                 child: SelectableText(
                   outputText,
-                  style: const TextStyle(fontFamily: 'Courier'),
+                  style: TextStyle(
+                    fontFamily: 'Courier',
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                 ),
               ),
             ),

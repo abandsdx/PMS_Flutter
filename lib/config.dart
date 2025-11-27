@@ -123,7 +123,7 @@ class Config {
     try {
       // The API requires a "trigger" call before fetching the map.
       // (API 要求在獲取地圖前先進行 "trigger" 呼叫。)
-      final refreshUrl = Uri.parse("http://64.110.100.118:8001/trigger-refresh");
+      final refreshUrl = Uri.parse("http://161.33.7.235:8001/trigger-refresh");
       final headers = {'Authorization': prodToken};
       final refreshResponse = await http.post(refreshUrl, headers: headers);
 
@@ -132,7 +132,7 @@ class Config {
         // (後端在觸發後似乎需要一個延遲。)
         // await Future.delayed(const Duration(seconds: 3)); // REMOVED to improve performance
 
-        final mapUrl = Uri.parse("http://64.110.100.118:8001/field-map");
+        final mapUrl = Uri.parse("http://161.33.7.235:8001/field-map");
         final mapResponse = await http.get(mapUrl, headers: headers);
 
         if (mapResponse.statusCode == 200) {
