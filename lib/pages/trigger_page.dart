@@ -26,11 +26,15 @@ class _TriggerPageView extends StatefulWidget {
   __TriggerPageViewState createState() => __TriggerPageViewState();
 }
 
-class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepAliveClientMixin {
+class __TriggerPageViewState extends State<_TriggerPageView>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
-  Future<void> _showLocationPicker(BuildContext context, {required bool isDestination}) async {
+  Future<void> _showLocationPicker(
+    BuildContext context, {
+    required bool isDestination,
+  }) async {
     final provider = Provider.of<TriggerPageProvider>(context, listen: false);
     if (provider.selectedField == null) {
       _showMessage(context, "提示", "請先選擇一個場域");
@@ -43,7 +47,8 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
 
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (ctx) => LocationPickerDialog(maps: provider.selectedField!.maps),
+      builder: (ctx) =>
+          LocationPickerDialog(maps: provider.selectedField!.maps),
     );
 
     if (result != null) {
@@ -62,7 +67,12 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
       builder: (_) => AlertDialog(
         title: Text(title),
         content: SingleChildScrollView(child: Text(msg)),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("確定"))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("確定"),
+          ),
+        ],
       ),
     );
   }
@@ -98,17 +108,23 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                   const SizedBox(height: 10),
                   DropdownButtonFormField<Field>(
                     value: provider.selectedField,
-                    items: Config.fields.map((f) => DropdownMenuItem(value: f, child: Text(f.fieldName))).toList(),
+                    items: Config.fields
+                        .map(
+                          (f) => DropdownMenuItem(
+                            value: f,
+                            child: Text(f.fieldName),
+                          ),
+                        )
+                        .toList(),
                     onChanged: provider.selectField,
                     decoration: const InputDecoration(labelText: "場域"),
                   ),
                   const SizedBox(height: 4),
                   DropdownButtonFormField<String>(
                     value: provider.missionType,
-                    items: const [
-                      "到取貨點取貨再送到目標點",
-                      "機器人派遣到目標點且不返回待命點",
-                    ].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                    items: const ["到取貨點取貨再送到目標點", "機器人派遣到目標點且不返回待命點"]
+                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                        .toList(),
                     onChanged: (v) => provider.setMissionType(v!),
                     decoration: const InputDecoration(labelText: "任務類型"),
                   ),
@@ -123,27 +139,75 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                   TextFormField(
                     controller: provider.destController,
                     readOnly: true,
-                    decoration: const InputDecoration(labelText: "遞送點", suffixIcon: Icon(Icons.arrow_drop_down)),
-                    onTap: () => _showLocationPicker(context, isDestination: true),
+                    decoration: const InputDecoration(
+                      labelText: "遞送點",
+                      suffixIcon: Icon(Icons.arrow_drop_down),
+                    ),
+                    onTap: () =>
+                        _showLocationPicker(context, isDestination: true),
                   ),
-                  TextFormField(
-                    controller: provider.pickupController,
-                    readOnly: true,
-                    decoration: const InputDecoration(labelText: "取貨點", suffixIcon: Icon(Icons.arrow_drop_down)),
-                    onTap: () => _showLocationPicker(context, isDestination: false),
-                  ),
-                  TextFormField(controller: provider.nameController, decoration: const InputDecoration(labelText: "物品名稱")),
-                  TextFormField(
-                    controller: provider.sizeController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: "數量"),
-                  ),
+                  if (provider.requiresPickup) ...[
+                    TextFormField(
+                      controller: provider.pickupController,
+                      readOnly: true,
+                      decoration: const InputDecoration(
+                        labelText: "取貨點",
+                        suffixIcon: Icon(Icons.arrow_drop_down),
+                      ),
+                      onTap: () =>
+                          _showLocationPicker(context, isDestination: false),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text("物品名稱"),
+                        TextButton.icon(
+                          onPressed: provider.canAddItem
+                              ? provider.addItemField
+                              : null,
+                          icon: const Icon(Icons.add),
+                          label: const Text("新增欄位"),
+                        ),
+                      ],
+                    ),
+                    ...List.generate(provider.itemControllers.length, (index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: TextFormField(
+                          controller: provider.itemControllers[index],
+                          decoration: InputDecoration(
+                            labelText: "物品名稱${index + 1}",
+                            suffixIcon: provider.itemControllers.length > 1
+                                ? IconButton(
+                                    icon: const Icon(Icons.close),
+                                    onPressed: () =>
+                                        provider.removeItemField(index),
+                                  )
+                                : null,
+                          ),
+                        ),
+                      );
+                    }),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text("需要密碼"),
+                      subtitle: const Text("雲端自動產生密碼，僅需切換此選項"),
+                      value: provider.isEnablePassword,
+                      onChanged: provider.setEnablePassword,
+                    ),
+                  ],
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ElevatedButton(onPressed: provider.clearForm, child: const Text("清除")),
-                      ElevatedButton(onPressed: () => _onTriggerMission(context), child: const Text("觸發任務")),
+                      ElevatedButton(
+                        onPressed: provider.clearForm,
+                        child: const Text("清除"),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => _onTriggerMission(context),
+                        child: const Text("觸發任務"),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -179,7 +243,9 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                             child: SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
                               child: ConstrainedBox(
-                                constraints: const BoxConstraints(minWidth: 900),
+                                constraints: const BoxConstraints(
+                                  minWidth: 900,
+                                ),
                                 child: DataTable(
                                   columnSpacing: 18,
                                   horizontalMargin: 12,
@@ -198,31 +264,65 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                                   ],
                                   rows: provider.robotInfo.map((r) {
                                     final isOnline = r['connStatus'] == 1;
-                                    final supportMcsText = (r['supportMCS'] == true) ? '支援' : '不支援';
-                                    final isChargingText = (r['batteryCharging'] == true) ? '是' : '否';
+                                    final supportMcsText =
+                                        (r['supportMCS'] == true)
+                                        ? '支援'
+                                        : '不支援';
+                                    final isChargingText =
+                                        (r['batteryCharging'] == true)
+                                        ? '是'
+                                        : '否';
 
                                     String maxPlatform = 'N/A';
                                     if (r['middleLayer'] is Map) {
                                       final data = r['middleLayer']['data'];
                                       if (data is Map) {
-                                        final platformValue = data['maxPlatform'];
-                                        if (platformValue != null && platformValue.toString().isNotEmpty) {
-                                          maxPlatform = platformValue.toString();
+                                        final platformValue =
+                                            data['maxPlatform'];
+                                        if (platformValue != null &&
+                                            platformValue
+                                                .toString()
+                                                .isNotEmpty) {
+                                          maxPlatform = platformValue
+                                              .toString();
                                         }
                                       }
                                     }
 
-                                    return DataRow(cells: [
-                                      DataCell(Text(r['sn']?.toString() ?? 'N/A')),
-                                      DataCell(Text(r['imageVersion']?.toString() ?? 'N/A')),
-                                      DataCell(Text(isChargingText)),
-                                      DataCell(Text(r['battery']?.toString() ?? 'N/A')),
-                                      DataCell(Text(isOnline ? '在線' : '離線')),
-                                      DataCell(Text(r['chassisUuid']?.toString() ?? 'N/A')),
-                                      DataCell(Text(supportMcsText)),
-                                      DataCell(Text(r['deliveriorStatus']?.toString() ?? 'N/A')),
-                                      DataCell(Text(maxPlatform)),
-                                    ]);
+                                    return DataRow(
+                                      cells: [
+                                        DataCell(
+                                          Text(r['sn']?.toString() ?? 'N/A'),
+                                        ),
+                                        DataCell(
+                                          Text(
+                                            r['imageVersion']?.toString() ??
+                                                'N/A',
+                                          ),
+                                        ),
+                                        DataCell(Text(isChargingText)),
+                                        DataCell(
+                                          Text(
+                                            r['battery']?.toString() ?? 'N/A',
+                                          ),
+                                        ),
+                                        DataCell(Text(isOnline ? '在線' : '離線')),
+                                        DataCell(
+                                          Text(
+                                            r['chassisUuid']?.toString() ??
+                                                'N/A',
+                                          ),
+                                        ),
+                                        DataCell(Text(supportMcsText)),
+                                        DataCell(
+                                          Text(
+                                            r['deliveriorStatus']?.toString() ??
+                                                'N/A',
+                                          ),
+                                        ),
+                                        DataCell(Text(maxPlatform)),
+                                      ],
+                                    );
                                   }).toList(),
                                 ),
                               ),
@@ -233,9 +333,15 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                 Align(
                   alignment: Alignment.centerRight,
                   child: ElevatedButton(
-                    onPressed: provider.isLoadingRobots ? null : provider.fetchRobots,
+                    onPressed: provider.isLoadingRobots
+                        ? null
+                        : provider.fetchRobots,
                     child: provider.isLoadingRobots
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.0))
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2.0),
+                          )
                         : const Text("刷新列表"),
                   ),
                 ),
@@ -254,11 +360,18 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                             itemBuilder: (context, index) {
                               final mission = provider.recentMissions[index];
                               return Card(
-                                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 child: ListTile(
-                                  leading: CircleAvatar(child: Text('${index + 1}')),
+                                  leading: CircleAvatar(
+                                    child: Text('${index + 1}'),
+                                  ),
                                   title: Text('機器人#${mission['sn']}'),
-                                  subtitle: Text('目的地: ${mission['destination']}'),
+                                  subtitle: Text(
+                                    '目的地: ${mission['destination']}',
+                                  ),
                                   trailing: ElevatedButton(
                                     child: const Text('查看軌跡'),
                                     onPressed: () {
@@ -266,7 +379,8 @@ class __TriggerPageViewState extends State<_TriggerPageView> with AutomaticKeepA
                                         context: context,
                                         barrierDismissible: false,
                                         builder: (_) => MapTrackingDialog(
-                                          mapImagePartialPath: mission['mapImagePartialPath'],
+                                          mapImagePartialPath:
+                                              mission['mapImagePartialPath'],
                                           mapOrigin: mission['mapOrigin'],
                                           robotUuid: mission['robotUuid'],
                                           responseText: mission['responseText'],
